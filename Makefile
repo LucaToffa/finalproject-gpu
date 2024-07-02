@@ -1,5 +1,5 @@
-CC = g++
-CXXFLAGS = -std=c++11 -g
+CC = nvcc
+CXXFLAGS = -std=c++11
 
 BUILD := build
 SRC := src
@@ -7,7 +7,11 @@ INCLUDE := include
 
 all: main
 
-main: $(SRC)/*.cpp main.cpp
+debug: $(SRC)/*.cpp main.cu
+	$(CC) $(CXXFLAGS) -g -DDEBUG -I$(INCLUDE) $^ -o $(BUILD)/$@
+	./$(BUILD)/$@
+	
+main: $(SRC)/*.cpp main.cu
 	$(CC) $(CXXFLAGS) -I$(INCLUDE) $^ -o $@
 
 run: main 

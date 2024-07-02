@@ -27,4 +27,5 @@ As usual, the metric to consider is the effective bandwidth
 
 ### useful sites
 https://sparse.tamu.edu/?per_page=All (The dataset to use)
+
 https://docs.nvidia.com/cuda/cusparse/ (cuSPARSE documentation)
