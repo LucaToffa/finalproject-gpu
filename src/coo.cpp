@@ -53,3 +53,8 @@ int print_coo_matrix(coo_matrix *coo){
     }
     return 0;
 }
+
+int print_coo_metadata(coo_matrix *coo){
+    std::cout << "COO matrix: " << std::endl;
+    std::cout << "rows: " << coo->rows << " cols: " << coo->cols << " nnz: " << coo->nnz << std::endl;
+    return 0;}

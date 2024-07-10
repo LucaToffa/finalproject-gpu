@@ -18,4 +18,4 @@ void coo_hello();
 coo_matrix* load_coo_matrix(const char *filename);
 coo_matrix* load_coo_matrix(void);
 int print_coo_matrix(coo_matrix *coo);
-
+int print_coo_metadata(coo_matrix *coo);
