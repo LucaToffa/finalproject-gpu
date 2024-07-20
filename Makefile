@@ -3,7 +3,8 @@ CC = g++
 CXXFLAGS = -std=c++11
 ## uncomment to run on remote machine
 # CXXFLAGS += -ccbin /home/linuxbrew/.linuxbrew/bin/g++-12
-##
+# CC = $(NVCC)
+
 BUILD := build
 SRC := src
 INCLUDE := include
