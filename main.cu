@@ -14,9 +14,30 @@ int main(int argc, char** argv) {
         }
         printf("\n");
     }
-
 #endif
-    testing();
+    //try coo kernel
+    coo_matrix* coo = load_coo_matrix("matrices/circuit204.mtx");
+    coo_element* el = coo->el;
+    coo_matrix* d_coo;
+    coo_element* d_el;
+    cudaMallocManaged((void**)&d_coo, sizeof(coo_matrix));
+    cudaMallocManaged((void**)&d_el, coo->nnz * sizeof(coo_element));
+    cudaMemcpy(d_coo, coo, sizeof(coo_matrix), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_el, el, coo->nnz * sizeof(coo_element), cudaMemcpyHostToDevice);
+    PRINTF("Copied memory\n");
+    d_coo->el = d_el;
+    printf("Before transpose\n");
+    print_coo_less(d_coo);
+    coo_transpose<<<coo->nnz,1>>>(d_coo);
+    cudaMemcpy(d_coo, d_coo, sizeof(coo_matrix), cudaMemcpyDeviceToHost);
+    printf("After transpose\n");
+    print_coo_less(d_coo);
+
+    cudaFree(d_coo);
+    cudaFree(d_el);
+    delete[] coo->el;
+    delete coo;
+
     return 0;
 }
 

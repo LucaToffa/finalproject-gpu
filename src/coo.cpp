@@ -3,8 +3,6 @@
 #include <iostream>
 #include <cstring>
 
-void coo_hello() { std::cout << "Hello world!! from COO" << std::endl; }
-
 coo_matrix* load_coo_matrix(const char *filename) {
     coo_matrix* coo = new coo_matrix;
     FILE *f = fopen(filename, "r");
@@ -45,5 +43,15 @@ int print_coo_matrix(coo_matrix *coo) {
 int print_coo_metadata(coo_matrix *coo) {
     std::cout << "COO Matrix Header: " << std::endl;
     std::cout << "rows: " << coo->rows << " cols: " << coo->cols << " nnz: " << coo->nnz << std::endl;
+    return 0;
+}
+
+//printing everything is too much, just print the first 10 elements
+int print_coo_less(coo_matrix *coo){
+    std::cout << "COO matrix: " << std::endl;
+    std::cout << "rows: " << coo->rows << " cols: " << coo->cols << " nnz: " << coo->nnz << std::endl;
+    for(int i = 0; i < coo->nnz && i < 10; i++){
+        std::cout << "row: " << coo->el[i].row << " col: " << coo->el[i].col << " val: " << coo->el[i].val << std::endl;
+    }
     return 0;
 }

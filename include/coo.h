@@ -4,8 +4,6 @@
 #include <iostream>
 #include <cstring>
 
-void coo_hello();
-
 struct coo_element{
     int row;
     int col;
@@ -23,6 +21,6 @@ coo_matrix* load_coo_matrix(const char *filename);
 coo_matrix* load_coo_matrix(void);
 int print_coo_matrix(coo_matrix *coo);
 int print_coo_metadata(coo_matrix *coo);
-
+int print_coo_less(coo_matrix *coo);
 
 #endif
