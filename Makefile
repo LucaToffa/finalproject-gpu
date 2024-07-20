@@ -27,8 +27,7 @@ debug: $(SRC)/* main.cu
 	@./$(BUILD)/$@
 main: $(OBJ) $(BUILD)/main.o
 	$(NVCC) $(CXXFLAGS) -DTILE_SIZE=$(T) -DBLOCK_ROWS=$(B) -I$(INCLUDE) $^ -o $@
-# compile everything in the src folder
-# and put the object files in the build folder
+
 $(BUILD)/main.o: main.cu
 	@$(NVCC) $(CXXFLAGS) -I$(INCLUDE) -c $< -o $@
 $(BUILD)/%.o: $(SRC)/%.cpp
