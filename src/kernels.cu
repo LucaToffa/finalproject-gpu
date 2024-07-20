@@ -1,6 +1,17 @@
-#include "kernels.h"
+#include "../include/coo.h"
+#include "../include/csr.h"
+#include "../include/kernels.cuh"
 #include "cuda_runtime.h"
-#include "defines.h"
+
+
+#ifndef TILE_SIZE
+    #define TILE_SIZE 32 
+#endif
+#ifndef BLOCK_ROWS
+    #define BLOCK_ROWS 8
+#endif
+#define DEFAULT_SIZE 32
+#define TRANSPOSITIONS 100
 
 __global__ void coo_transpose(coo_matrix *coo){
     //TODO: implement, now is random garbage
@@ -44,8 +55,6 @@ __global__ void block_transpose(float *input, float *output){
     for(int j = 0; j < TILE_SIZE; j += BLOCK_ROWS){
         output[(y+j) * w + x] = tile[threadIdx.x][threadIdx.y+j];
     }
-
-
 }
 
 //without the +1 the memory access conflicts cannot be avoided
