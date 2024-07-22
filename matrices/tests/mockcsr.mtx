@@ -1,7 +1,9 @@
-# rows columns nnz
-# raw pointers
-# column offset
-# data
+% Matrix is of the Sort:
+% | 1.0 2.2 3.9 4 5.0 6.4 7 |
+% 
+%
+%
+%
 4 4 7
 0 3 4 6 7
 0 2 3 1 2 3 3

@@ -1,6 +1,9 @@
 #include "../include/csr.h"
 #include "../include/debug.h"
+#include <cmath>
+#include <cstdlib>
 #include <iostream>
+#include <cstring>
 
 csr_matrix::csr_matrix(int rows, int cols, int nnz) {
     this->rows = rows;
@@ -35,18 +38,39 @@ csr_matrix* load_csr_matrix(const char *filename) {
         std::cerr << "Error opening file: " << filename << std::endl;
         return NULL;
     }
-    char c;
-    do { c = fgetc(f); } while(c < '0' || c > '9');
-    ungetc(c, f);
     int rows, cols, nnz;
+    char* line = new char[1024];
+    while (line[0] < '0' || line[0] > '9') { line = fgets(line, 1024, f); }
+    fseek(f, -strlen(line), SEEK_CUR);
     fscanf(f, "%d %d %d", &rows, &cols, &nnz);
     csr_matrix *csr = new csr_matrix(rows, cols, nnz);
     int *row_offsets = new int[rows + 1];
     int *col_indices = new int[nnz];
     float *values = new float[nnz];
-    for(int i = 0; i < rows + 1; i++){ fscanf(f, "%d", &row_offsets[i]); }
-    for(int i = 0; i < nnz; i++){ fscanf(f, "%d", &col_indices[i]); }
-    for(int i = 0; i < nnz; i++){ fscanf(f, "%f", &values[i]); }
+
+    for (int i = 0; i < nnz; i++) {
+        // every line is of the form: (int)row (int)col (signed int | float)value
+        int row, col;
+        float value;
+        fscanf(f, "%d %d %f", &row, &col, &value);
+        row--; col--; // 1-indexed to 0-indexed
+        if (row < 0 || row >= rows || col < 0 || col >= cols) {
+            std::cerr << "Error: Invalid row or column index at line " << i << std::endl;
+            return NULL;
+        }
+        values[i] = value;
+        col_indices[i] = col;
+        row_offsets[row + 1]++;        
+    }
+
+    for (int i = 0; i < rows; i++) {
+        row_offsets[i + 1] += row_offsets[i];
+    }
+
+    //for(int i = 0; i < rows + 1; i++){ fscanf(f, "%d", &row_offsets[i]); }
+    //for(int i = 0; i < nnz; i++){ fscanf(f, "%d", &col_indices[i]); }
+    //for(int i = 0; i < nnz; i++){ fscanf(f, "%f", &values[i]); }
+    
     csr->csr_fill(row_offsets, col_indices, values);
     delete[] row_offsets;
     delete[] col_indices;
@@ -75,14 +99,17 @@ bool is_transpose(csr_matrix *csr, csr_matrix *csr_t) {
                     found = false;
                     for (int l = csr_t->row_offsets[j]; l < csr_t->row_offsets[j + 1]; l++) {
                         if (csr_t->col_indices[l] == i) {
-                            if (csr->values[k] != csr_t->values[l]) {
+                            // since they are floats we need to compare them with a tolerance
+                            if (std::fabs((float)csr->values[k] - (float)csr_t->values[l]) > 1e-3) {
+                                printf("Unequal - Error at mat[%d, %d]\n", i, j);
                                 return false;
                             }
                             found = true;
                             break;
                         }
                     }
-                    if (!found) {
+                    if (!found && i != j && i != csr->cols - 1) {
+                        printf("Not Found - Error at mat[%d, %d]\n", i, j);
                         return false;
                     }
                     break;
@@ -91,6 +118,7 @@ bool is_transpose(csr_matrix *csr, csr_matrix *csr_t) {
             if (!found) {
                 for (int l = csr_t->row_offsets[j]; l < csr_t->row_offsets[j + 1]; l++) {
                     if (csr_t->col_indices[l] == i) {
+                        printf("Extra - Error at mat[%d, %d]\n", i, j);
                         return false;
                     }
                 }

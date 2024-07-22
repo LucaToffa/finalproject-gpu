@@ -24,11 +24,12 @@ int main(int argc, char** argv) {
     //try coo kernel
     //cuda_transpose_example();
 
-    csr_matrix* csr = load_csr_matrix("matrices/tests/mockcsr.mtx");
+    csr_matrix* csr = load_csr_matrix("matrices/circuit204.mtx");
     csr_matrix* csr_t = new csr_matrix(csr->rows, csr->cols, csr->nnz);
-    //pretty_print_csr_matrix(csr);
+    print_csr_matrix(csr);
+    pretty_print_csr_matrix(csr);
     cuSparseCSRt(csr, csr_t);
-    //pretty_print_csr_matrix(csr_t);
+    pretty_print_csr_matrix(csr_t);
     if (is_transpose(csr, csr_t)) {
         printf("Transpose is correct\n");
     } else {
