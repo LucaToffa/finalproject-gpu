@@ -20,6 +20,8 @@ class csr_matrix{
 
 csr_matrix* load_csr_matrix(const char *filename);
 csr_matrix* load_csr_matrix(void);
+bool is_transpose(csr_matrix *csr, csr_matrix *csr_t);
 int print_csr_matrix(csr_matrix *csr);
+int pretty_print_csr_matrix(csr_matrix *csr);
 
 #endif
