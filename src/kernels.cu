@@ -1,8 +1,7 @@
 #include "../include/coo.h"
 #include "../include/csr.h"
 #include "../include/kernels.cuh"
-#include "cuda_runtime.h"
-
+#include <cuda_runtime.h>
 
 #ifndef TILE_SIZE
     #define TILE_SIZE 32 
@@ -13,24 +12,40 @@
 #define DEFAULT_SIZE 32
 #define TRANSPOSITIONS 100
 
-__global__ void coo_transpose(coo_matrix *coo){
-    //TODO: implement, now is random garbage
+/**
+ * @brief Kernel to Transpose a COO Matrix out of place
+    * @param[in] in - COO Matrix to be transposed
+    * @param[out] out - Transposed COO Matrix
+ */
+__global__ void cuCOOtCopy(coo_element *in, coo_element *out, size_t nnz) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if(i < coo->nnz){
-        int tmp = coo->el[i].row;
-        coo->el[i].row = coo->el[i].col;
-        coo->el[i].col = tmp;
+    if(i < nnz) {
+        out[i].row = in[i].col;
+        out[i].col = in[i].row;
+        out[i].val = in[i].val;
     }
 }
-__global__ void csr_transpose(csr_matrix *csr){
+/**
+ * @brief Kernel to Transpose a COO Matrix in-place
+    * @param[in] in - COO Matrix to be transposed
+ */
+__global__ void cuCOOt(coo_element *in, size_t nnz) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i < nnz) {
+        size_t tmp = in[i].row;
+        in[i].row = in[i].col;
+        in[i].col = tmp;
+    }
+}
+
+/**
+ * @brief Kernel to Transpose a CSR Matrix out of place
+    * @param[in] in
+    * @param[out] out
+*/
+__global__ void csr_transpose(const csr_matrix *in, csr_matrix *out) {
     //TODO: implement, now is random garbage
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if(i < csr->nnz){
-        int tmp = csr->col_indices[i];
-        csr->col_indices[i] = csr->row_offsets[i];
-        csr->row_offsets[i] = tmp;
-    
-    }
 }
 
 //old version of block transpose algorithm to check against the new ones

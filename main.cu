@@ -7,7 +7,7 @@
 #include <cuda_runtime.h>
 
 
-int testing();
+int cuSparse_transpose_example();
 int cuda_transpose_example();
 
 
@@ -22,10 +22,16 @@ int main(int argc, char** argv) {
     }
 #endif
     //try coo kernel
-    //cuda_transpose_example();
+    cuda_transpose_example();
 
+    // cuSparse_transpose_example();
+
+    return 0;
+}
+
+int cuSparse_transpose_example() {
     csr_matrix* csr = load_csr_matrix("matrices/circuit204.mtx");
-    csr_matrix* csr_t = new csr_matrix(csr->rows, csr->cols, csr->nnz);
+    csr_matrix* csr_t = new_csr_matrix(csr->rows, csr->cols, csr->nnz, csr->row_offsets, csr->col_indices, csr->values);
     print_csr_matrix(csr);
     pretty_print_csr_matrix(csr);
     cuSparseCSRt(csr, csr_t);
@@ -37,7 +43,6 @@ int main(int argc, char** argv) {
     }
     delete csr;
     delete csr_t;
-
     return 0;
 }
 
@@ -46,52 +51,27 @@ int cuda_transpose_example() {
     coo_element* el = coo->el;
     coo_matrix* d_coo;
     coo_element* d_el;
-    cudaMallocManaged((void**)&d_coo, sizeof(coo_matrix));
-    cudaMallocManaged((void**)&d_el, coo->nnz * sizeof(coo_element));
-    cudaMemcpy(d_coo, coo, sizeof(coo_matrix), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_el, el, coo->nnz * sizeof(coo_element), cudaMemcpyHostToDevice);
+    CHECK_CUDA(cudaMallocManaged((void**)&d_coo, sizeof(coo_matrix)));
+    CHECK_CUDA(cudaMallocManaged((void**)&d_el, coo->nnz * sizeof(coo_element)));
+    CHECK_CUDA(cudaMemcpy(d_coo, coo, sizeof(coo_matrix), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_el, el, coo->nnz * sizeof(coo_element), cudaMemcpyHostToDevice));
     PRINTF("Copied memory\n");
     d_coo->el = d_el;
     printf("Before transpose\n");
     print_coo_less(d_coo);
-    coo_transpose<<<coo->nnz,1>>>(d_coo);
-    cudaMemcpy(d_coo, d_coo, sizeof(coo_matrix), cudaMemcpyDeviceToHost);
+    cuCOOt<<<coo->nnz,1>>>(d_coo->el, d_coo->nnz);
+    CHECK_CUDA(cudaMemcpy(d_coo, d_coo, sizeof(coo_matrix), cudaMemcpyDeviceToHost));
     printf("After transpose\n");
     print_coo_less(d_coo);
+    if (is_transpose(coo, d_coo)) {
+        printf("Transpose is correct\n");
+    } else {
+        printf("Transpose is incorrect\n");
+    }
 
-    cudaFree(d_coo);
-    cudaFree(d_el);
+    CHECK_CUDA(cudaFree(d_coo));
+    CHECK_CUDA(cudaFree(d_el));
     delete[] coo->el;
     delete coo;
-    return 0;
-}
-
-int testing() {
-    coo_matrix* coo = load_coo_matrix("matrices/tests/mockcoo.mtx");
-    PRINTF("--------------------\n");
-    print_coo_matrix(coo);
-    PRINTF("--------------------\n");
-    delete coo;
-    coo = load_coo_matrix("matrices/circuit204.mtx");
-    print_coo_metadata(coo);
-    int full_size = 4;
-    float *mat = new float [full_size*full_size];
-    sparseInitMatrix(mat, full_size);
-    coo_matrix* coo2 = mat_to_coo(mat, full_size);
-    PRINTF("--------------------\n");
-    print_coo_matrix(coo2);
-    printMatrix(mat, full_size);
-    PRINTF("--------------------\n");
-
-    delete[] mat;
-    delete coo;
-    delete coo2;
-
-    PRINTF("CSR tests\n");
-    //csr_matrix* csr = load_csr_matrix("matrices/tests/mockcsr.mtx");
-    csr_matrix* csr = load_csr_matrix();
-    PRINTF("--------------------\n");
-    print_csr_matrix(csr);
-    PRINTF("--------------------\n");
     return 0;
 }

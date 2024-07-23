@@ -12,7 +12,6 @@ int initMatrix(float* mat, int size) {
         }
     }
     return 0;
-
 }
 
 int sparseInitMatrix(float* mat, int size) {
@@ -50,7 +49,14 @@ int testTranspose(float* mat, float* mat_t, int size) {
 }
 
 csr_matrix coo_to_csr(coo_matrix *coo) {
-    csr_matrix csr(coo->rows, coo->cols, coo->nnz);
+    csr_matrix csr = csr_matrix {
+        coo->rows,
+        coo->cols,
+        coo->nnz,
+        new size_t[coo->rows + 1],
+        new size_t[coo->nnz],
+        new float[coo->nnz]
+    };
     return csr;
 }
 
@@ -60,37 +66,6 @@ coo_matrix csr_to_coo(csr_matrix *csr) {
     coo.cols = csr->cols;
     coo.nnz = csr->nnz;
     coo.el = new coo_element[coo.nnz];
-    return coo;
-}
-
-csr_matrix mat_to_csr(float *mat, int size) {
-    csr_matrix csr(0, 0, 0);
-    return csr;
-}
-
-coo_matrix* mat_to_coo(float *mat, int size) {
-    coo_matrix* coo = new coo_matrix;
-    coo->rows = size; coo->cols = size;
-    int nnz = 0;
-    //TODO: avoid going through the matrix twice
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            if (mat[i*size + j] != 0) { nnz++; }
-        }
-    }
-    coo->nnz = nnz;
-    coo->el = new coo_element[nnz];
-    int k = 0;
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            if (mat[i*size + j] != 0) {
-                coo->el[k].row = i;
-                coo->el[k].col = j;
-                coo->el[k].val = mat[i*size + j];
-                k++;
-            }
-        }
-    }
     return coo;
 }
 
