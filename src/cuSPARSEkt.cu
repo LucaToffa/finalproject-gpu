@@ -46,7 +46,7 @@ int cuSparseCSRt(csr_matrix* in, csr_matrix* out) {
         in->rows, in->cols, in->nnz,
         d_in_values, d_in_row_offsets, d_in_cols,
         d_out_values, d_out_row_offsets, d_out_cols,
-        CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG_DEFAULT, &bufferSize
+        CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG1, &bufferSize
     );
     printf("Buffer size: %lu\n", bufferSize);
     // ? Allocate memory on device for buffer
@@ -60,7 +60,7 @@ int cuSparseCSRt(csr_matrix* in, csr_matrix* out) {
         in->rows, in->cols, in->nnz,
         d_in_values, d_in_row_offsets, d_in_cols,
         d_out_values, d_out_row_offsets, d_out_cols,
-        CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG_DEFAULT, dBuffer
+        CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG1, dBuffer
     );
     // ? Record time after performing the transpose operation
     CHECK_CUDA(cudaEventRecord(stop));
