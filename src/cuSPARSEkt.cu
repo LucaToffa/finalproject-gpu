@@ -3,9 +3,14 @@
 #include "../include/cuSPARSEkt.cuh"
 #include <cuda_runtime.h>
 #include <cusparse.h>
+#include <fstream>
 
 
 int cuSparseCSRt(csr_matrix* in, csr_matrix* out) {
+    if(cudaSetDevice(0) != cudaSuccess) {
+        fprintf(stderr, "Failed to set CUDA device\n");
+        return 1;
+    }
     printf("cuSparseCSRt\n");
     // ? Create cuSPARSE handle and matrix descriptor
     cusparseHandle_t handle;
@@ -72,6 +77,12 @@ int cuSparseCSRt(csr_matrix* in, csr_matrix* out) {
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
     printf("Time for executing cuSPARSECSRt operation: %f ms\n", milliseconds);
+
+    std::ofstream output;
+    output.open ("logs/results.log", std::ios::out | std::ios_base::app);
+    output << "N_mat, " << "Cusparse, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    output.close();
+
     //TODO: correct output
     // ? Free memory on device
     CHECK_CUDA(cudaFree(d_in_row_offsets));

@@ -5,19 +5,23 @@
 #include "include/kernels.cuh"
 #include "include/cuSPARSEkt.cuh"
 #include <cuda_runtime.h>
-
 #include "include/benchmarks.cuh"
+#include <iostream>
+#include <fstream>
+
 const int matrix_number = 11;
 const char* matrix_list[] = { //for some reason in the original order csr load broke ???
-    "matrices/spaceStation_5.mtx",
-    "matrices/bcsstm01.mtx", "matrices/494_bus.mtx",
+    "matrices/494_bus.mtx",
+    "matrices/bcsstm01.mtx",
+    "matrices/circuit204.mtx",
     "matrices/collins_15NN.mtx",
     "matrices/lowThrust_1.mtx",
+    "matrices/orbitRaising_3.mtx",
+    "matrices/spaceStation_5.mtx",
+    "matrices/tomography.mtx",
     "matrices/umistfacesnorm_10NN.mtx",
-    "matrices/orbitRaising_3.mtx", "matrices/Vehicle_10NN.mtx",
-    "matrices/circuit204.mtx",
-    "matrices/west0989.mtx",
-    "matrices/tomography.mtx"
+    "matrices/Vehicle_10NN.mtx",
+    "matrices/west0989.mtx"
 };
 
 int cuSparse_transpose_example();
@@ -37,20 +41,6 @@ int main(int argc, char** argv) {
     }
 #endif
     complete_benchmark();
-    //try coo kernel
-    //cuda_transpose_example();
-
-    // cuSparse_transpose_example();
-    //test csr
-    // for(int i = 0; i < matrix_mumber; i++){
-    //     printf("%s: ", matrix_list[i]);
-    //     csr_matrix* csr = load_csr_matrix(matrix_list[i]);
-    //     print_csr_matrix(csr);
-    //     delete[] csr->cols
-    //     dele
-    //     delete csr;
-    // }
-
 
     return 0;
 }
@@ -106,6 +96,10 @@ int complete_benchmark() {
 
     unsigned int size;
     PRINTF("enter loop\n");
+    std::ofstream output;
+    output.open ("logs/results.log");
+    output << "#N_mat, algorithm, OpTime, Op-GB/s, KTime, K-GB/s#\n";
+    output.close();
     for (int i = 0; i < matrix_number; i++) {
         PRINTF("Matrix: %s\n", matrix_list[i]);
         //load as coo
@@ -122,23 +116,23 @@ int complete_benchmark() {
         inside the called function
         */
         PRINTF("calling cuCOOt kernel\n");
-        if(coo_transposition(coo)){//coo transpose
+        if(coo_transposition(coo)){
             printf("error in coo transpose, matrix #%d\n", i);
         }
         PRINTF("calling cuCSRt kernel\n");
-        if(csr_transposition(csr, csr_t)){//csr transpose
+        if(csr_transposition(csr, csr_t)){
             printf("error in csr transpose, matrix #%d\n", i);
         }
         PRINTF("calling block kernel\n");
-        if(block_trasposition(uncompressed, size)){//block transpose
+        if(block_trasposition(uncompressed, size)){
             printf("error in block transpose, matrix #%d\n", i);
         }
         PRINTF("calling conflict kernel\n");
-        if(conflict_transposition(uncompressed, size)){//conflict transpose
+        if(conflict_transposition(uncompressed, size)){
             printf("error in conflict transpose, matrix #%d\n", i);
         }
         PRINTF("calling cuSparseCSRt kernel\n");
-        if(cuSparseCSRt(csr, csr_t)){//cuSparse transpose
+        if(cuSparseCSRt(csr, csr_t)){
             printf("error in cuSparse transpose, matrix #%d\n", i);
         }
         printf("matrix #%d done\n", i);

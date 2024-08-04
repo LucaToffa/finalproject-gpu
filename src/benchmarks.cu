@@ -7,10 +7,15 @@
 #include <thrust/scan.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
-
+#include <fstream>
 //complete run for each transposition algorithm callled by complete_benchmark in main
 
 int coo_transposition(coo_matrix* coo){
+    if ((cudaSetDevice(0)) != cudaSuccess) {
+        printf("Failed to set CUDA device\n");
+        return 1;
+    }
+    
     coo_element* el = coo->el;
     coo_matrix* d_coo;
     coo_element* d_el;
@@ -42,6 +47,10 @@ int coo_transposition(coo_matrix* coo){
     } else {
         PRINTF("Transpose is incorrect\n");
     }
+    std::ofstream output;
+    output.open ("logs/results.log", std::ios::out | std::ios_base::app);
+    output << "N_mat, " << "COO, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    output.close();
 
     CHECK_CUDA(cudaFree(d_coo));
     CHECK_CUDA(cudaFree(d_el));
@@ -50,6 +59,10 @@ int coo_transposition(coo_matrix* coo){
     return 0;
 }
 int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
+    if ((cudaSetDevice(0)) != cudaSuccess) {
+        printf("Failed to set CUDA device\n");
+        return 1;
+    }
     // Example CSR matrix
     //assign real values instead of random
     thrust::host_vector<int> h_values(8);// = {10, 20, 30, 40, 50, 60, 70, 80};
@@ -86,6 +99,10 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
 }
 
 int block_trasposition(float* mat, unsigned int N){
+    if ((cudaSetDevice(0)) != cudaSuccess) {
+        printf("Failed to set CUDA device\n");
+        return 1;
+    }
     int mem_size = N * N * sizeof(float);
     float* mat_t = (float*) malloc(mem_size);
     memset(mat_t, 0, mem_size);
@@ -157,7 +174,13 @@ int block_trasposition(float* mat, unsigned int N){
     PRINTF("Throughput in GB/s: %7.2f\n", ogbs);
     PRINTF("Kernel Time: %11.2f ms\n", millisecondsK);
     PRINTF("Throughput in GB/s: %7.2f\n", kgbs);
-    printf("%f, %f, %f, %f\n", milliseconds, ogbs, millisecondsK, kgbs);
+    //printf("%f, %f, %f, %f\n", milliseconds, ogbs, millisecondsK, kgbs);
+    
+    std::ofstream output;
+    output.open ("logs/results.log", std::ios::out | std::ios_base::app);
+    output << "N_mat, " << "block, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    output.close();
+
     cudaEventDestroy(startK);
     cudaEventDestroy(stopK);
     cudaEventDestroy(start);
@@ -178,6 +201,10 @@ int block_trasposition(float* mat, unsigned int N){
     return 0;
 }
 int conflict_transposition(float* mat, unsigned int N){
+    if ((cudaSetDevice(0)) != cudaSuccess) {
+        printf("Failed to set CUDA device\n");
+        return 1;
+    }
     int mem_size = N * N * sizeof(float);
     float* mat_t = (float*) malloc(mem_size);
     memset(mat_t, 0, mem_size);
@@ -249,6 +276,11 @@ int conflict_transposition(float* mat, unsigned int N){
     PRINTF("Kernel Time: %11.2f ms\n", millisecondsK);
     PRINTF("Throughput in GB/s: %7.2f\n", kgbs);
     printf("%f, %f, %f, %f, ", milliseconds, ogbs, millisecondsK, kgbs);
+    
+    std::ofstream output;
+    output.open ("logs/results.log", std::ios::out | std::ios_base::app);
+    output << "N_mat, " << "Conflict, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    output.close();
 
     cudaEventDestroy(startK);
     cudaEventDestroy(stopK);
@@ -275,7 +307,10 @@ int transposeCSRToCSC(const thrust::host_vector<int>& h_values, const thrust::ho
                        thrust::device_vector<int>& d_t_values, thrust::device_vector<int>& d_t_row_indices,
                        thrust::device_vector<int>& d_t_col_ptr) {
     int nnz = h_values.size();
-
+    if ((cudaSetDevice(0)) != cudaSuccess) {
+        PRINTF("Failed to set CUDA device\n");
+        return 1;
+    }
     cudaEvent_t start, stop;
     CHECK_CUDA(cudaEventCreate(&start));
     CHECK_CUDA(cudaEventCreate(&stop));
@@ -316,6 +351,10 @@ int transposeCSRToCSC(const thrust::host_vector<int>& h_values, const thrust::ho
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
     printf("Time for executing cuSPARSECSRt operation: %f ms\n", milliseconds);
+    std::ofstream output;
+    output.open ("logs/results.log", std::ios::out | std::ios_base::app);
+    output << "N_mat, " << "CSR" << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    output.close();
     cudaCheckError();
     return 0;
 }
