@@ -72,6 +72,7 @@ int cuSparseCSRt(csr_matrix* in, csr_matrix* out) {
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
     printf("Time for executing cuSPARSECSRt operation: %f ms\n", milliseconds);
+    //TODO: correct output
     // ? Free memory on device
     CHECK_CUDA(cudaFree(d_in_row_offsets));
     CHECK_CUDA(cudaFree(d_in_cols));

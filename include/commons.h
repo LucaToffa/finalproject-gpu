@@ -5,6 +5,15 @@
 #include "csr.h"
 #include "coo.h"
 
+//just test one case
+#ifndef TILE_SIZE
+    #define TILE_SIZE 32 
+#endif
+#ifndef BLOCK_ROWS
+    #define BLOCK_ROWS 8
+#endif
+#define DEFAULT_SIZE 32
+#define TRANSPOSITIONS 100
 
 #define CHECK_CUDA(func)                                                       \
 {                                                                              \
@@ -26,6 +35,14 @@
     }                                                                          \
 }
 
+//in some places CHECK_CUDA does not work, so we stil need to use this 
+#define cudaCheckError() {                                                        \
+    cudaError_t e=cudaGetLastError();                                             \
+    if(e!=cudaSuccess) {                                                          \
+        printf("CUDA Error %s:%d: %s\n",__FILE__,__LINE__,cudaGetErrorString(e)); \
+        exit(EXIT_FAILURE);                                                       \
+    }                                                                             \
+}
 
 int initMatrix(float* mat, int size);
 int sparseInitMatrix(float* mat, int size);

@@ -24,7 +24,7 @@ B = 8 ## works up to 16
 all: run
 debug: $(SRC)/* main.cu
 	$(NVCC) $(CXXFLAGS) -g -DDEBUG -DTILE_SIZE=$(T) -DBLOCK_ROWS=$(B) -I$(INCLUDE) $^ -o $(BUILD)/$@
-	@./$(BUILD)/$@
+	@nvidia-optimus-offload-glx ./$(BUILD)/$@
 main: $(OBJ) $(BUILD)/main.o
 	$(NVCC) $(CXXFLAGS) -DTILE_SIZE=$(T) -DBLOCK_ROWS=$(B) -I$(INCLUDE) $^ -o $@
 
@@ -35,8 +35,10 @@ $(BUILD)/%.o: $(SRC)/%.cpp
 $(BUILD)/%.o: $(SRC)/%.cu
 	@$(NVCC) $(CXXFLAGS) -I$(INCLUDE) -c $< -o $@
 
+valgrind: main
+	valgrind --leak-check=full --show-leak-kinds=all -s --track-origins=yes --log-fd=9 9>valgrind.txt ./main
 run: main
-	@./main $(N)
+	./main $(N)
 setup:
 	mkdir -p src build include \
 	& touch README.md main.cpp

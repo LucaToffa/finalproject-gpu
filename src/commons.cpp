@@ -81,6 +81,15 @@ float* csr_to_mat(csr_matrix *csr){
 float* coo_to_mat(coo_matrix *coo) {
     float* mat = new float[coo->rows*coo->cols];
     memset(mat, 0, coo->rows*coo->cols*sizeof(float));
-    for (int i = 0; i < coo->nnz; i++) { mat[coo->el[i].row*coo->cols + coo->el[i].col] = coo->el[i].val; }
+    int idx;
+    for (int i = 0; i < coo->nnz; i++){
+        idx = coo->el[i].row*coo->cols + coo->el[i].col;
+        if(idx > coo->cols*coo->rows || idx < 0){
+            printf("Out of bound matrix index during conversion at %d, index is %d\n", i, idx);
+            printf("COO cols: %ld, rows: %ld, el.row: %ld, el.col: %ld\n", coo->cols, coo->rows, coo->el[i].col, coo->el[i].row);
+            return NULL;
+        }
+        mat[idx] = coo->el[i].val; 
+    }
     return mat;
 }

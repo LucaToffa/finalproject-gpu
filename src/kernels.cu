@@ -1,16 +1,9 @@
 #include "../include/coo.h"
 #include "../include/csr.h"
 #include "../include/kernels.cuh"
+#include "../include/commons.h"
 #include <cuda_runtime.h>
 
-#ifndef TILE_SIZE
-    #define TILE_SIZE 32 
-#endif
-#ifndef BLOCK_ROWS
-    #define BLOCK_ROWS 8
-#endif
-#define DEFAULT_SIZE 32
-#define TRANSPOSITIONS 100
 
 /**
  * @brief Kernel to Transpose a COO Matrix out of place
@@ -45,8 +38,30 @@ __global__ void cuCOOt(coo_element *in, size_t nnz) {
 */
 __global__ void csr_transpose(const csr_matrix *in, csr_matrix *out) {
     //TODO: implement, now is random garbage
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    //int i = blockIdx.x * blockDim.x + threadIdx.x;
 }
+// Kernel to count the number of non-zero entries per column
+__global__ void countNNZPerColumn(const int* col_indices, int* col_counts, int nnz) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < nnz) {
+        atomicAdd(&col_counts[col_indices[tid]], 1);
+    }
+}
+
+// Kernel to scatter values and row indices to transposed matrix
+__global__ void scatterToTransposed(const int* values, const int* col_indices, const int* row_ptr,
+                                    int* t_values, int* t_row_indices, int* t_col_ptr, int num_rows) {
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row < num_rows) {
+        for (int j = row_ptr[row]; j < row_ptr[row + 1]; ++j) {
+            int col = col_indices[j];
+            int dest = atomicAdd(&t_col_ptr[col], 1);
+            t_values[dest] = values[j];
+            t_row_indices[dest] = row;
+        }
+    }
+}
+
 
 //old version of block transpose algorithm to check against the new ones
 __global__ void block_transpose(float *input, float *output){

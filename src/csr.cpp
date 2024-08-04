@@ -33,9 +33,12 @@ csr_matrix* load_csr_matrix(const char *filename) {
     }
     int rows, cols, nnz;
     char* line = new char[1024];
-    while (line[0] < '0' || line[0] > '9') { line = fgets(line, 1024, f); }
+    do{
+        line = fgets(line, 1024, f);
+    }while (line[0] < '0' || line[0] > '9');
     fseek(f, -strlen(line), SEEK_CUR);
     fscanf(f, "%d %d %d", &rows, &cols, &nnz);
+    PRINTF("rows: %d cols: %d nnz: %d", rows, cols, nnz);
     size_t *row_offsets = new size_t[rows + 1];
     size_t *col_indices = new size_t[nnz];
     float *values = new float[nnz];
@@ -48,6 +51,7 @@ csr_matrix* load_csr_matrix(const char *filename) {
         row--; col--; // 1-indexed to 0-indexed
         if (row < 0 || row >= rows || col < 0 || col >= cols) {
             std::cerr << "Error: Invalid row or column index at line " << i << std::endl;
+            std::cerr << "row: " << row << "col: " << col << "value: " << value << std::endl;
             return NULL;
         }
         values[i] = value;
@@ -63,6 +67,7 @@ csr_matrix* load_csr_matrix(const char *filename) {
     //for(int i = 0; i < nnz; i++){ fscanf(f, "%d", &col_indices[i]); }
     //for(int i = 0; i < nnz; i++){ fscanf(f, "%f", &values[i]); }
     csr_matrix *csr = new_csr_matrix(rows, cols, nnz, row_offsets, col_indices, values);
+    delete[] line;
     delete[] row_offsets;
     delete[] col_indices;
     delete[] values;
