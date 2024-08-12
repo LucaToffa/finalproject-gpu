@@ -40,6 +40,8 @@ int testTranspose(const float* mat, const float* mat_t, int size) {
         for (int j = 0; j < size; j++) {
             if (mat[i + j*size] != mat_t[j + i*size]) {
                 printf("Error at mat[%d, %d]\n", i, j);
+                PRINTF("Expected: %2.2f, Got: %2.2f\n", mat[i + j*size], mat_t[j + i*size]);
+                PRINTF("Matrix transposed with errors!\n");
                 return -1;
             }
         }

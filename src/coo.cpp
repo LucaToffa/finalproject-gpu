@@ -5,19 +5,21 @@
 #include <cstring>
 
 coo_matrix* load_coo_matrix(const char *filename) {
+    PRINTF("--------------------\n");
+    PRINTF("Loading COO Matrix from file: %s\n", filename);
     coo_matrix* coo = new coo_matrix;
     FILE *f = fopen(filename, "r");
-    if(f == NULL){
+    if(f == NULL) {
         std::cerr << "Error opening file: " << filename << std::endl;
         return NULL;
     }
     char* line = new char[1024];
-    do{ 
+    do {
         line = fgets(line, 1024, f); 
-    }while (line[0] < '0' || line[0] > '9');
+    } while (line[0] < '0' || line[0] > '9');
     fseek(f, -strlen(line), SEEK_CUR);
     fscanf(f, "%lu %lu %lu", &coo->rows, &coo->cols, &coo->nnz);
-    PRINTF("rows: %d, cols: %d, nnz: %d", coo->rows, coo->cols, coo->nnz);
+    PRINTF("Metadata: { Rows: %zu\t, Cols: %zu\t, NNZ: %zu }\n", coo->rows, coo->cols, coo->nnz);
     coo->el = new coo_element[coo->nnz];
     size_t row, col;
     for(int i = 0; i < coo->nnz; i++){ 
@@ -28,7 +30,8 @@ coo_matrix* load_coo_matrix(const char *filename) {
     }
     delete[] line;
     fclose(f);
-    PRINTF("COO Matrix loaded from file: %s\n", filename);
+    PRINTF("COO Matrix loaded succesfully.\n");
+    PRINTF("--------------------\n");
     return coo;
 }
 

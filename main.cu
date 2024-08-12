@@ -9,6 +9,8 @@
 #include <iostream>
 #include <fstream>
 
+#define DEBUG
+
 const int matrix_number = 11;
 const char* matrix_list[] = { //for some reason in the original order csr load broke ???
     "matrices/494_bus.mtx",
@@ -41,7 +43,6 @@ int main(int argc, char** argv) {
     }
 #endif
     complete_benchmark();
-
     return 0;
 }
 
@@ -93,15 +94,14 @@ int cuda_transpose_example() {
 }
 
 int complete_benchmark() {
-
     unsigned int size;
-    PRINTF("enter loop\n");
+    PRINTF("main.cu) Now Entering Loop...\n");
     std::ofstream output;
     output.open("logs/results.log");
     output << "#N_mat, algorithm, OpTime, Op-GB/s, KTime, K-GB/s#\n";
     output.close();
     for (int i = 0; i < matrix_number; i++) {
-        PRINTF("Matrix: %s\n", matrix_list[i]);
+        PRINTF("main.cu) Matrix: %s\n", matrix_list[i]);
         //load as coo
         coo_matrix* coo = load_coo_matrix(matrix_list[i]);
         //load as csr
@@ -109,33 +109,34 @@ int complete_benchmark() {
         csr_matrix* csr_t = new_csr_matrix(csr->rows, csr->cols, csr->nnz, csr->row_offsets, csr->col_indices, csr->values);
         //load as uncompressed
         float* uncompressed = coo_to_mat(coo);
+        assert(coo->rows == coo->cols);
         size = coo->rows;
         /*
         each kernel + any other necessary operations / checks
         save to output file: mat | algo | time | BW | error
         inside the called function
         */
-        PRINTF("calling cuCOOt kernel\n");
-        if(coo_transposition(coo)){
+        PRINTF("main.cu) calling cuCOOt kernel\n");
+        if(coo_transposition(coo)) {
             printf("error in coo transpose, matrix #%d\n", i);
         }
-        PRINTF("calling cuCSRt kernel\n");
-        if(csr_transposition(csr, csr_t)){
+        PRINTF("main.cu) calling cuCSRt kernel\n");
+        if(csr_transposition(csr, csr_t)) {
             printf("error in csr transpose, matrix #%d\n", i);
         }
-        PRINTF("calling block kernel\n");
-        if(block_trasposition(uncompressed, size)){
+        PRINTF("main.cu) calling block kernel\n");
+        if(block_trasposition(uncompressed, size)) {
             printf("error in block transpose, matrix #%d\n", i);
         }
-        PRINTF("calling conflict kernel\n");
-        if(conflict_transposition(uncompressed, size)){
+        PRINTF("main.cu) calling conflict kernel\n");
+        if(conflict_transposition(uncompressed, size)) {
             printf("error in conflict transpose, matrix #%d\n", i);
         }
-        PRINTF("calling cuSparseCSRt kernel\n");
-        if(cuSparseCSRt(csr, csr_t)){
+        PRINTF("main.cu) calling cuSparseCSRt kernel\n");
+        if(cuSparseCSRt(csr, csr_t)) {
             printf("error in cuSparse transpose, matrix #%d\n", i);
         }
-        printf("matrix #%d done\n", i);
+        printf("main.cu) matrix #%d done\n", i);
 
         //delete everything
         delete[] coo->el;
@@ -152,5 +153,3 @@ int complete_benchmark() {
     }
     return 0;
 }
-
-

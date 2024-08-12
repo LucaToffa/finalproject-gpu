@@ -1,21 +1,24 @@
+//complete run for each transposition algorithm callled by complete_benchmark in main
 #include "../include/benchmarks.cuh"
 #include "../include/commons.h"
 #include "../include/kernels.cuh"
 #include "../include/debug.h"
+#include <cstdio>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <thrust/scan.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
 #include <fstream>
-//complete run for each transposition algorithm callled by complete_benchmark in main
 
-int coo_transposition(coo_matrix* coo){
+
+int coo_transposition(coo_matrix* coo) {
+    PRINTF("--------------------\n");
+    PRINTF("COO Transposition Method called: coo_transposition() -> cuCOOt().\n");
     if ((cudaSetDevice(0)) != cudaSuccess) {
         printf("Failed to set CUDA device\n");
         return 1;
     }
-    
     coo_element* el = coo->el;
     coo_matrix* d_coo;
     coo_element* d_el;
@@ -23,29 +26,35 @@ int coo_transposition(coo_matrix* coo){
     CHECK_CUDA(cudaMallocManaged((void**)&d_el, coo->nnz * sizeof(coo_element)));
     CHECK_CUDA(cudaMemcpy(d_coo, coo, sizeof(coo_matrix), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_el, el, coo->nnz * sizeof(coo_element), cudaMemcpyHostToDevice));
-    PRINTF("Copied memory\n");
-    PRINTF("Copied memory\n");
+    PRINTF("Copied & Allocated Memory Succesfully\n");
     d_coo->el = d_el;
 
     cudaEvent_t start, stop;
     CHECK_CUDA(cudaEventCreate(&start));
     CHECK_CUDA(cudaEventCreate(&stop));
     
-    printf("Before transpose\n");
-    print_coo_less(d_coo);
+    #ifdef DEBUG
+        printf("Pre-Transpose Matrix:\n");
+        print_coo_less(d_coo);
+    #endif
     CHECK_CUDA(cudaEventRecord(start));
     cuCOOt<<<coo->nnz,1>>>(d_coo->el, d_coo->nnz);
     CHECK_CUDA(cudaMemcpy(d_coo, d_coo, sizeof(coo_matrix), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaEventRecord(stop));
-    PRINTF("After transpose\n");
+    CHECK_CUDA(cudaEventSynchronize(stop));
+
+    PRINTF("Transposition Completed Succesfully.\n");
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
     printf("Time for executing cuCOOt operation: %f ms\n", milliseconds);
-    print_coo_less(d_coo);
+    #ifdef DEBUG
+        printf("Post-Transpose Matrix:\n");
+        print_coo_less(d_coo);
+    #endif
     if (is_transpose(coo, d_coo)) {
-        PRINTF("Transpose is correct\n");
+        PRINTF("Transpose is correct.\n");
     } else {
-        PRINTF("Transpose is incorrect\n");
+        PRINTF("Transpose is incorrect.\n");
     }
     std::ofstream output;
     output.open ("logs/results.log", std::ios::out | std::ios_base::app);
@@ -54,11 +63,14 @@ int coo_transposition(coo_matrix* coo){
 
     CHECK_CUDA(cudaFree(d_coo));
     CHECK_CUDA(cudaFree(d_el));
-    delete[] coo->el;
-    delete coo;
+    PRINTF("Freed Memory Succesfully.\n");
+    PRINTF("--------------------\n");
     return 0;
 }
+
 int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
+    PRINTF("--------------------\n");
+    PRINTF("CSR Transposition Method Called: csr_transposition() -> transposeCSRToCSC().\n");
     if ((cudaSetDevice(0)) != cudaSuccess) {
         printf("Failed to set CUDA device\n");
         return 1;
@@ -95,10 +107,14 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
     printf("Transposed Matrix:\n");
     pretty_print_matrix(h_t_values, h_t_row_indices, h_t_col_ptr, num_rows, num_cols); // ! error invert num_rows and num_cols
 
+    PRINTF("Transposition Completed Succesfully.\n");
+    PRINTF("--------------------\n");
     return 0;
 }
 
-int block_trasposition(float* mat, unsigned int N){
+int block_trasposition(float* mat, unsigned int N) {
+    PRINTF("--------------------\n");
+    PRINTF("Block Transposition Method Called: block_transposition() -> block_transpose().\n");
     if ((cudaSetDevice(0)) != cudaSuccess) {
         printf("Failed to set CUDA device\n");
         return 1;
@@ -108,33 +124,20 @@ int block_trasposition(float* mat, unsigned int N){
     memset(mat_t, 0, mem_size);
     initMatrix(mat, N);
     float *d_mat, *d_mat_t;
-    cudaError_t err;
     //int threads, blocks = 0;
-    PRINTF("Allocating memory\n");
-    if((err = cudaMalloc((void**)&d_mat, mem_size)) != cudaSuccess){
-        printf("Error allocating memory for d_a: %s\n", cudaGetErrorString(err));
-        printf("Line: %d\n", __LINE__);
-        return -1;
-    }
-    if((err = cudaMalloc((void**)&d_mat_t, mem_size)) != cudaSuccess){
-        printf("Error allocating memory for d_mat_t: %s\n", cudaGetErrorString(err));
-        printf("Line: %d\n", __LINE__);
-        return -1;
-    }
+    PRINTF("Allocating memory.\n");
+    CHECK_CUDA(cudaMalloc((void**)&d_mat, mem_size));
+    CHECK_CUDA(cudaMalloc((void**)&d_mat_t, mem_size));
     //cudaMalloc((void**)&d_mat_t, mem_size);
-    PRINTF("Memory allocated\n");
+    PRINTF("Memory allocated.\n");
     //copy data to gpu
     cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
+    CHECK_CUDA(cudaEventCreate(&start));
+    CHECK_CUDA(cudaEventCreate(&stop));
+    CHECK_CUDA(cudaEventRecord(start));
 
-    if((err = cudaMemcpy(d_mat, mat, N * N * sizeof(int), cudaMemcpyHostToDevice)) != cudaSuccess){
-        printf("Error copying data to d_mat: %s\n", cudaGetErrorString(err));
-        printf("Line: %d\n", __LINE__);
-        return -1;
-    }
-    PRINTF("Data copied\n");
+    CHECK_CUDA(cudaMemcpy(d_mat, mat, mem_size, cudaMemcpyHostToDevice));
+    PRINTF("Data copied.\n");
     //setup grid and block size
     dim3 DimGrid = {N/TILE_SIZE, N/TILE_SIZE, 1};
     dim3 DimBlock = {TILE_SIZE, BLOCK_ROWS, 1};
@@ -143,37 +146,33 @@ int block_trasposition(float* mat, unsigned int N){
     //first a dummy kernel
     block_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t);
     cudaEvent_t startK, stopK;
-    cudaEventCreate(&startK);
-    cudaEventCreate(&stopK);
-    cudaEventRecord(startK);
+    CHECK_CUDA(cudaEventCreate(&startK));
+    CHECK_CUDA(cudaEventCreate(&stopK));
+    CHECK_CUDA(cudaEventRecord(startK));
     for(int i = 0; i < TRANSPOSITIONS; i++){
         block_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t);
     }
-    cudaEventRecord(stopK);
-    cudaEventSynchronize(stopK);
+    CHECK_CUDA(cudaEventRecord(stopK));
+    CHECK_CUDA(cudaEventSynchronize(stopK));
     PRINTF("Kernel returned\n");
 
     //copy data back
-    if((err = cudaMemcpy(mat_t, d_mat_t, mem_size, cudaMemcpyDeviceToHost)) != cudaSuccess){
-        printf("Error copying data to mat_t: %s\n", cudaGetErrorString(err));
-        printf("Line: %d\n", __LINE__);
-        return -1;
-    }
+    CHECK_CUDA(cudaMemcpy(mat_t, d_mat_t, mem_size, cudaMemcpyDeviceToHost));
     //sync
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaDeviceSynchronize();
+    CHECK_CUDA(cudaEventRecord(stop));
+    CHECK_CUDA(cudaEventSynchronize(stop));
+    CHECK_CUDA(cudaDeviceSynchronize());
     
     float millisecondsK = 0;
-    cudaEventElapsedTime(&millisecondsK, startK, stopK);
+    CHECK_CUDA(cudaEventElapsedTime(&millisecondsK, startK, stopK));
     float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
+    CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
     float ogbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / milliseconds;
     float kgbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / millisecondsK;
     PRINTF("Operation Time: %11.2f ms\n", milliseconds);
-    PRINTF("Throughput in GB/s: %7.2f\n", ogbs);
+    PRINTF("Operation Throughput in GB/s: %7.2f\n", ogbs);
     PRINTF("Kernel Time: %11.2f ms\n", millisecondsK);
-    PRINTF("Throughput in GB/s: %7.2f\n", kgbs);
+    PRINTF("Kernel Throughput in GB/s: %7.2f\n", kgbs);
     //printf("%f, %f, %f, %f\n", milliseconds, ogbs, millisecondsK, kgbs);
     
     std::ofstream output;
@@ -181,26 +180,48 @@ int block_trasposition(float* mat, unsigned int N){
     output << "N_mat, " << "block, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
     output.close();
 
-    cudaEventDestroy(startK);
-    cudaEventDestroy(stopK);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    CHECK_CUDA(cudaEventDestroy(startK));
+    CHECK_CUDA(cudaEventDestroy(stopK));
+    CHECK_CUDA(cudaEventDestroy(start));
+    CHECK_CUDA(cudaEventDestroy(stop));
 
 
     //results
-    printMatrix(mat_t, N);
+    // printMatrix(mat_t, N);
 
     //test if the matrix is transposed
-    testTranspose(mat, mat_t, N);  
-
+    if (testTranspose(mat, mat_t, N) != 0) {
+        // save the matrix to a file
+        std::ofstream output;
+        output.open("logs/block_transpose_err.log", std::ios::out | std::ios_base::app);
+        output << "Matrix: " << N << "x" << N << "\n";
+        output << "Original Matrix:\n";
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                output << mat[i + j*N] << " ";
+            }
+            output << "\n";
+        }
+        output << "\n\nTransposed Matrix:\n";
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                output << mat_t[i + j*N] << " ";
+            }
+            output << "\n";
+        }
+        output.close();
+    }
+    PRINTF("--------------------\n");
     //free gpu resources
-    cudaFree(d_mat);
-    cudaFree(d_mat_t);
-    free(mat);
+    CHECK_CUDA(cudaFree(d_mat));
+    CHECK_CUDA(cudaFree(d_mat_t));
     free(mat_t);
     return 0;
 }
-int conflict_transposition(float* mat, unsigned int N){
+
+int conflict_transposition(float* mat, unsigned int N) {
+    PRINTF("--------------------\n");
+    PRINTF("Conflict Transposition Method Called: conflict_transposition() -> conflict_transpose().\n");
     if ((cudaSetDevice(0)) != cudaSuccess) {
         printf("Failed to set CUDA device\n");
         return 1;
@@ -209,33 +230,22 @@ int conflict_transposition(float* mat, unsigned int N){
     float* mat_t = (float*) malloc(mem_size);
     memset(mat_t, 0, mem_size);
     float *d_mat, *d_mat_t;
-    cudaError_t err;
     //int threads, blocks = 0;
-    PRINTF("Allocating memory\n");
-    if((err = cudaMalloc((void**)&d_mat, mem_size)) != cudaSuccess){
-        printf("Error allocating memory for d_a: %s\n", cudaGetErrorString(err));
-        printf("Line: %d\n", __LINE__);
-        return -1;
-    }
-    if((err = cudaMalloc((void**)&d_mat_t, mem_size)) != cudaSuccess){
-        printf("Error allocating memory for d_mat_t: %s\n", cudaGetErrorString(err));
-        printf("Line: %d\n", __LINE__);
-        return -1;
-    }
+    PRINTF("Allocating memory.\n");
+    CHECK_CUDA(cudaMalloc((void**)&d_mat, mem_size));
+    CHECK_CUDA(cudaMalloc((void**)&d_mat_t, mem_size));
     //cudaMalloc((void**)&d_mat_t, mem_size);
-    PRINTF("Memory allocated\n");
+    PRINTF("Memory allocated.\n");
     //copy data to gpu
     cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
+    CHECK_CUDA(cudaEventCreate(&start));
+    CHECK_CUDA(cudaEventCreate(&stop));
+    CHECK_CUDA(cudaEventRecord(start));
+    PRINTF("Cuda Events Created.\n");
 
-    if((err = cudaMemcpy(d_mat, mat, N * N * sizeof(int), cudaMemcpyHostToDevice)) != cudaSuccess){
-        printf("Error copying data to d_mat: %s\n", cudaGetErrorString(err));
-        printf("Line: %d\n", __LINE__);
-        return -1;
-    }
-    PRINTF("Data copied\n");
+    PRINTF("Now copying data from host (mat) to device (d_mat). Exactly: %d Bytes\n", mem_size);
+    CHECK_CUDA(cudaMemcpy(d_mat, mat, mem_size, cudaMemcpyHostToDevice));
+    PRINTF("Data copied.\n");
     //setup grid and block size
     dim3 DimGrid = {N/TILE_SIZE, N/TILE_SIZE, 1};
     dim3 DimBlock = {TILE_SIZE, BLOCK_ROWS, 1};
@@ -244,31 +254,27 @@ int conflict_transposition(float* mat, unsigned int N){
     //first a dummy kernel
     conflict_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t);
     cudaEvent_t startK, stopK;
-    cudaEventCreate(&startK);
-    cudaEventCreate(&stopK);
-    cudaEventRecord(startK);
+    CHECK_CUDA(cudaEventCreate(&startK));
+    CHECK_CUDA(cudaEventCreate(&stopK));
+    CHECK_CUDA(cudaEventRecord(startK));
     for(int i = 0; i < TRANSPOSITIONS; i++){
         conflict_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t);
     }
-    cudaEventRecord(stopK);
-    cudaEventSynchronize(stopK);
+    CHECK_CUDA(cudaEventRecord(stopK));
+    CHECK_CUDA(cudaEventSynchronize(stopK));
     PRINTF("Kernel returned\n");
 
     //copy data back
-    if((err = cudaMemcpy(mat_t, d_mat_t, mem_size, cudaMemcpyDeviceToHost)) != cudaSuccess){
-        printf("Error copying data to mat_t: %s\n", cudaGetErrorString(err));
-        printf("Line: %d\n", __LINE__);
-        return -1;
-    }
+    CHECK_CUDA(cudaMemcpy(mat_t, d_mat_t, mem_size, cudaMemcpyDeviceToHost));
     //sync
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaDeviceSynchronize();
+    CHECK_CUDA(cudaEventRecord(stop));
+    CHECK_CUDA(cudaEventSynchronize(stop));
+    CHECK_CUDA(cudaDeviceSynchronize());
     
     float millisecondsK = 0;
-    cudaEventElapsedTime(&millisecondsK, startK, stopK);
+    CHECK_CUDA(cudaEventElapsedTime(&millisecondsK, startK, stopK));
     float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
+    CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
     PRINTF("Operation Time: %11.2f ms\n", milliseconds);
     float ogbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / milliseconds;
     float kgbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / millisecondsK;
@@ -282,22 +288,21 @@ int conflict_transposition(float* mat, unsigned int N){
     output << "N_mat, " << "Conflict, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
     output.close();
 
-    cudaEventDestroy(startK);
-    cudaEventDestroy(stopK);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    CHECK_CUDA(cudaEventDestroy(startK));
+    CHECK_CUDA(cudaEventDestroy(stopK));
+    CHECK_CUDA(cudaEventDestroy(start));
+    CHECK_CUDA(cudaEventDestroy(stop));
 
 
     //results
-    printMatrix(mat_t, N);
+    //printMatrix(mat_t, N);
 
     //test if the matrix is transposed
-    testTranspose(mat, mat_t, N);  
-
+    testTranspose(mat, mat_t, N);
+    PRINTF("--------------------\n");
     //free gpu resources
-    cudaFree(d_mat);
-    cudaFree(d_mat_t);
-    free(mat);
+    CHECK_CUDA(cudaFree(d_mat));
+    CHECK_CUDA(cudaFree(d_mat_t));
     free(mat_t);
     return 0;
 }
@@ -306,6 +311,7 @@ int transposeCSRToCSC(const thrust::host_vector<int>& h_values, const thrust::ho
                        const thrust::host_vector<int>& h_row_ptr, int num_rows, int num_cols,
                        thrust::device_vector<int>& d_t_values, thrust::device_vector<int>& d_t_row_indices,
                        thrust::device_vector<int>& d_t_col_ptr) {
+    PRINTF("Transpose CSR to CSC Method Called: transposeCSRToCSC().\n");
     int nnz = h_values.size();
     if ((cudaSetDevice(0)) != cudaSuccess) {
         PRINTF("Failed to set CUDA device\n");
@@ -348,6 +354,7 @@ int transposeCSRToCSC(const thrust::host_vector<int>& h_values, const thrust::ho
                                                          thrust::raw_pointer_cast(d_t_row_indices.data()),
                                                          thrust::raw_pointer_cast(d_col_ptr_copy.data()), num_rows);
     CHECK_CUDA(cudaEventRecord(stop));
+    CHECK_CUDA(cudaEventSynchronize(stop));
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
     printf("Time for executing cuSPARSECSRt operation: %f ms\n", milliseconds);

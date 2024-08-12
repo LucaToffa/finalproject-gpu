@@ -26,6 +26,8 @@ csr_matrix* new_csr_matrix(size_t rows, size_t cols, size_t nnz, size_t *row_off
 }
 
 csr_matrix* load_csr_matrix(const char *filename) {
+    PRINTF("--------------------\n");
+    PRINTF("Loading CSR Matrix from file: %s\n", filename);
     FILE *f = fopen(filename, "r");
     if(f == NULL){
         std::cerr << "Error opening file: " << filename << std::endl;
@@ -38,7 +40,7 @@ csr_matrix* load_csr_matrix(const char *filename) {
     }while (line[0] < '0' || line[0] > '9');
     fseek(f, -strlen(line), SEEK_CUR);
     fscanf(f, "%d %d %d", &rows, &cols, &nnz);
-    PRINTF("rows: %d cols: %d nnz: %d", rows, cols, nnz);
+    PRINTF("Metadata: { Rows: %d\t, Cols: %d\t, NNZ: %d }\n", rows, cols, nnz);
     size_t *row_offsets = new size_t[rows + 1];
     size_t *col_indices = new size_t[nnz];
     float *values = new float[nnz];
@@ -62,7 +64,8 @@ csr_matrix* load_csr_matrix(const char *filename) {
     for (int i = 0; i < rows; i++) {
         row_offsets[i + 1] += row_offsets[i];
     }
-
+    PRINTF("CSR Matrix loaded succesfully.\n");
+    PRINTF("--------------------\n");
     //for(int i = 0; i < rows + 1; i++){ fscanf(f, "%d", &row_offsets[i]); }
     //for(int i = 0; i < nnz; i++){ fscanf(f, "%d", &col_indices[i]); }
     //for(int i = 0; i < nnz; i++){ fscanf(f, "%f", &values[i]); }
