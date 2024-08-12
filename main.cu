@@ -97,7 +97,7 @@ int complete_benchmark() {
     unsigned int size;
     PRINTF("enter loop\n");
     std::ofstream output;
-    output.open ("logs/results.log");
+    output.open("logs/results.log");
     output << "#N_mat, algorithm, OpTime, Op-GB/s, KTime, K-GB/s#\n";
     output.close();
     for (int i = 0; i < matrix_number; i++) {

@@ -24,7 +24,7 @@ int sparseInitMatrix(float* mat, int size) {
     return 0;
 }
 
-int printMatrix(float* mat, int size) {
+int printMatrix(const float* mat, int size) {
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
             printf("%2.2f ", mat[i + j*size]);
@@ -35,7 +35,7 @@ int printMatrix(float* mat, int size) {
     return 0;
 }
 
-int testTranspose(float* mat, float* mat_t, int size) {
+int testTranspose(const float* mat, const float* mat_t, int size) {
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
             if (mat[i + j*size] != mat_t[j + i*size]) {
@@ -48,7 +48,11 @@ int testTranspose(float* mat, float* mat_t, int size) {
     return 0;
 }
 
-csr_matrix coo_to_csr(coo_matrix *coo) {
+csr_matrix coo_to_csr(const coo_matrix *coo) {
+    // TODO: Implement this function (if needed)
+    std::cout << "Function coo_to_csr not implemented" << std::endl;
+    std::cerr << "Function coo_to_csr not implemented" << std::endl;
+    std::exit(EXIT_FAILURE);
     csr_matrix csr = csr_matrix {
         coo->rows,
         coo->cols,
@@ -60,7 +64,11 @@ csr_matrix coo_to_csr(coo_matrix *coo) {
     return csr;
 }
 
-coo_matrix csr_to_coo(csr_matrix *csr) {
+coo_matrix csr_to_coo(const csr_matrix *csr) {
+    // TODO: Implement this function (if needed)
+    std::cout << "Function csr_to_coo not implemented" << std::endl;
+    std::cerr << "Function csr_to_coo not implemented" << std::endl;
+    std::exit(EXIT_FAILURE);
     coo_matrix coo;
     coo.rows = csr->rows;
     coo.cols = csr->cols;
@@ -69,22 +77,25 @@ coo_matrix csr_to_coo(csr_matrix *csr) {
     return coo;
 }
 
-float* csr_to_mat(csr_matrix *csr){
+float* csr_to_mat(const csr_matrix *csr){
+    std::cout << "Function csr_to_mat not checked yet" << std::endl;
+    std::cerr << "Function csr_to_mat not checked yet" << std::endl;
+    std::exit(EXIT_FAILURE);
     float* mat = new float[csr->rows*csr->cols];
     memset(mat, 0, csr->rows*csr->cols*sizeof(float));
-    //TODO: this is random gargabe
+    //TODO: check if this is correct
     for (int i = 0; i < csr->nnz; i++) {
         mat[csr->row_offsets[i]*csr->cols + csr->col_indices[i]] = csr->values[i];
     }
     return mat;
 }
-float* coo_to_mat(coo_matrix *coo) {
+float* coo_to_mat(const coo_matrix *coo) {
     float* mat = new float[coo->rows*coo->cols];
     memset(mat, 0, coo->rows*coo->cols*sizeof(float));
     int idx;
-    for (int i = 0; i < coo->nnz; i++){
+    for (int i = 0; i < coo->nnz; i++) {
         idx = coo->el[i].row*coo->cols + coo->el[i].col;
-        if(idx > coo->cols*coo->rows || idx < 0){
+        if(idx > coo->cols*coo->rows || idx < 0) {
             printf("Out of bound matrix index during conversion at %d, index is %d\n", i, idx);
             printf("COO cols: %ld, rows: %ld, el.row: %ld, el.col: %ld\n", coo->cols, coo->rows, coo->el[i].col, coo->el[i].row);
             return NULL;

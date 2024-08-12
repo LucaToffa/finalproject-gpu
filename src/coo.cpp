@@ -41,7 +41,7 @@ coo_matrix* load_coo_matrix(void) {
     return coo;
 }
 
-bool is_transpose(coo_matrix *coo, coo_matrix *coo_t) {
+bool is_transpose(const coo_matrix *coo, const coo_matrix *coo_t) {
     if(coo->rows != coo_t->cols || coo->cols != coo_t->rows || coo->nnz != coo_t->nnz) {
         return false;
     }
@@ -53,7 +53,7 @@ bool is_transpose(coo_matrix *coo, coo_matrix *coo_t) {
     return true;
 }
 
-int print_coo_matrix(coo_matrix *coo) {
+int print_coo_matrix(const coo_matrix *coo) {
     std::cout << "COO Matrix Full: " << std::endl;
     std::cout << "rows: " << coo->rows << " cols: " << coo->cols << " nnz: " << coo->nnz << std::endl;
     for(int i = 0; i < coo->nnz; i++) {
@@ -62,14 +62,14 @@ int print_coo_matrix(coo_matrix *coo) {
     return 0;
 }
 
-int print_coo_metadata(coo_matrix *coo) {
+int print_coo_metadata(const coo_matrix *coo) {
     std::cout << "COO Matrix Header: " << std::endl;
     std::cout << "rows: " << coo->rows << " cols: " << coo->cols << " nnz: " << coo->nnz << std::endl;
     return 0;
 }
 
 //printing everything is too much, just print the first 10 elements
-int print_coo_less(coo_matrix *coo) {
+int print_coo_less(const coo_matrix *coo) {
     std::cout << "COO matrix: " << std::endl;
     std::cout << "rows: " << coo->rows << " cols: " << coo->cols << " nnz: " << coo->nnz << std::endl;
     for(int i = 0; i < coo->nnz && i < 10; i++){

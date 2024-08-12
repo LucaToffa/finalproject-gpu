@@ -44,13 +44,60 @@
     }                                                                             \
 }
 
+/**
+    * @brief Initialize a dense square matrix with incrementing values given a size
+    * @param {float *} mat - Pointer to the matrix
+    * @param {int} size - Size of the matrix
+    * @returns {int} - 0 if successful
+ */
 int initMatrix(float* mat, int size);
+/**
+    * @brief Initialize a dense square matrix with incrementing values given a size, with some elements set to 0
+    * @param {float *} mat - Pointer to the matrix
+    * @param {int} size - Size of the matrix
+    * @returns {int} - 0 if successful
+ */
 int sparseInitMatrix(float* mat, int size);
-int printMatrix(float* mat, int size);
-int testTranspose(float* mat, float* mat_t, int size);
-csr_matrix coo_to_csr(coo_matrix *coo);
-coo_matrix csr_to_coo(csr_matrix *csr);
-float* csr_to_mat(csr_matrix *csr);
-float* coo_to_mat(coo_matrix *coo);
+/**
+    * @brief Print a dense square matrix given a size, padded to console as a matrix
+    * @param {float *} mat - Pointer to the matrix
+    * @param {int} size - Size of the matrix
+    * @returns {int} - 0 if successful
+ */
+int printMatrix(const float* mat, int size);
+/**
+    * @brief Test if a dense square matrix is the transpose of another dense square matrix and prints to console any discrepancies
+    * @param {const float *} mat - Pointer to the first matrix
+    * @param {const float *} mat_t - Pointer to the second matrix
+    * @param {int} size - Size of the matrix
+    * @returns {int} - 0 if the matrices are one the transpose of the other, -1 otherwise
+ */
+int testTranspose(const float* mat, const float* mat_t, int size);
+/**
+    * !Not Yet Implemented!
+    * @brief Converts a COO matrix to a CSR matrix
+    * @param {coo_matrix *} coo - Pointer to the COO matrix
+    * @returns {csr_matrix} - CSR matrix
+ */
+csr_matrix coo_to_csr(const coo_matrix *coo);
+/**
+    * !Not Yet Implemented!
+    * @brief Converts a CSR matrix to a COO matrix
+    * @param {csr_matrix *} csr - Pointer to the CSR matrix
+    * @returns {coo_matrix} - COO matrix
+ */
+coo_matrix csr_to_coo(const csr_matrix *csr);
+/**
+    * @brief Converts a CSR matrix to a dense square matrix
+    * @param {csr_matrix *} csr - Pointer to the CSR matrix
+    * @returns {float *} - Pointer to the dense square matrix
+ */
+float* csr_to_mat(const csr_matrix *csr);
+/**
+    * @brief Converts a COO matrix to a dense square matrix
+    * @param {coo_matrix *} coo - Pointer to the COO matrix
+    * @returns {float *} - Pointer to the dense square matrix
+ */
+float* coo_to_mat(const coo_matrix *coo);
 
 #endif

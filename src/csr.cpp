@@ -82,7 +82,7 @@ csr_matrix* load_csr_matrix(void) {
     return csr;
 }
 
-bool is_transpose(csr_matrix *csr, csr_matrix *csr_t) {
+bool is_transpose(const csr_matrix *csr, const csr_matrix *csr_t) {
     if (csr->rows != csr_t->cols || csr->cols != csr_t->rows || csr->nnz != csr_t->nnz) {
         return false;
     }
@@ -123,7 +123,7 @@ bool is_transpose(csr_matrix *csr, csr_matrix *csr_t) {
     return true;
 }
 
-int print_csr_matrix(csr_matrix *csr) {
+int print_csr_matrix(const csr_matrix *csr) {
     std::cout << "Debug Print - CSR Matrix:" << std::endl;
     std::cout << "Rows: " << csr->rows << " Cols: " << csr->cols << " NNZ: " << csr->nnz << std::endl;
     std::cout << "Row offsets: ";
@@ -138,7 +138,7 @@ int print_csr_matrix(csr_matrix *csr) {
     return 0;
 }
 
-int pretty_print_csr_matrix(csr_matrix *csr) {
+int pretty_print_csr_matrix(const csr_matrix *csr) {
     // this method prints the matrix in a more human readable way
     // it is useful for debugging
     std::cout << "Pretty Print - CSR Matrix:" << std::endl;
