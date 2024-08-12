@@ -6,7 +6,6 @@
 #include "include/cuSPARSEkt.cuh"
 #include <cuda_runtime.h>
 #include "include/benchmarks.cuh"
-#include <iostream>
 #include <fstream>
 
 #define DEBUG
