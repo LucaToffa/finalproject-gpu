@@ -79,7 +79,7 @@ coo_matrix csr_to_coo(const csr_matrix *csr) {
     return coo;
 }
 
-float* csr_to_mat(const csr_matrix *csr){
+float* csr_to_mat(const csr_matrix *csr) {
     std::cout << "Function csr_to_mat not checked yet" << std::endl;
     std::cerr << "Function csr_to_mat not checked yet" << std::endl;
     std::exit(EXIT_FAILURE);
@@ -91,15 +91,16 @@ float* csr_to_mat(const csr_matrix *csr){
     }
     return mat;
 }
+
 float* coo_to_mat(const coo_matrix *coo) {
-    float* mat = new float[coo->rows*coo->cols];
-    memset(mat, 0, coo->rows*coo->cols*sizeof(float));
-    int idx;
+    float* mat = new float[coo->rows * coo->cols];
+    memset(mat, 0, (coo->rows * coo->cols) * sizeof(float));
     for (int i = 0; i < coo->nnz; i++) {
-        idx = coo->el[i].row*coo->cols + coo->el[i].col;
-        if(idx > coo->cols*coo->rows || idx < 0) {
+        int idx = (coo->el[i].row * coo->cols) + coo->el[i].col;
+        if((idx > (coo->cols * coo->rows)) || (idx < 0)) {
             printf("Out of bound matrix index during conversion at %d, index is %d\n", i, idx);
             printf("COO cols: %ld, rows: %ld, el.row: %ld, el.col: %ld\n", coo->cols, coo->rows, coo->el[i].col, coo->el[i].row);
+            delete[] mat;
             return NULL;
         }
         mat[idx] = coo->el[i].val; 

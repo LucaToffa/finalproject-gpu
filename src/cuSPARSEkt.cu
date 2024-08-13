@@ -1,12 +1,16 @@
 #include "../include/commons.h"
 #include "../include/csr.h"
 #include "../include/cuSPARSEkt.cuh"
+#include <cassert>
 #include <cuda_runtime.h>
 #include <cusparse.h>
 #include <fstream>
 
 
-int cuSparseCSRt(csr_matrix* in, csr_matrix* out) {
+int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
+    assert(in != NULL && out != NULL && in->row_offsets != NULL && in->col_indices != NULL && in->values != NULL && out->row_offsets != NULL && out->col_indices != NULL && out->values != NULL);
+    assert(in->rows == out->cols);
+    assert(in->cols == out->rows);
     if(cudaSetDevice(0) != cudaSuccess) {
         fprintf(stderr, "Failed to set CUDA device\n");
         return 1;
@@ -24,26 +28,20 @@ int cuSparseCSRt(csr_matrix* in, csr_matrix* out) {
     int* d_in_row_offsets, *d_in_cols, *d_out_row_offsets, *d_out_cols;
     float* d_in_values, *d_out_values;
     // ? Allocate memory on device for Input Matrix
-    printf("Now allocating %lu bytes...\n", (unsigned long)(in->rows + 1) * sizeof(int));
-    CHECK_CUDA(cudaMalloc((void**)&d_in_row_offsets, (in->rows + 1) * sizeof(int)));
-    printf("Now allocating %lu bytes...\n", (unsigned long)in->nnz * sizeof(int));
-    CHECK_CUDA(cudaMalloc((void**)&d_in_cols, in->nnz * sizeof(int)));
-    printf("Now allocating %lu bytes...\n", (unsigned long)in->nnz * sizeof(float));
+    CHECK_CUDA(cudaMalloc((void**)&d_in_row_offsets, (in->rows + 1) * sizeof(size_t)));
+    CHECK_CUDA(cudaMalloc((void**)&d_in_cols, in->nnz * sizeof(size_t)));
     CHECK_CUDA(cudaMalloc((void**)&d_in_values, in->nnz * sizeof(float)));
     // ? Allocate memory on device for Output Matrix
-    printf("Now allocating %lu bytes...\n", (unsigned long)(out->rows + 1) * sizeof(int));
-    CHECK_CUDA(cudaMalloc((void**)&d_out_row_offsets, (out->rows + 1) * sizeof(int)));
-    printf("Now allocating %lu bytes...\n", (unsigned long)out->nnz * sizeof(int));
-    CHECK_CUDA(cudaMalloc((void**)&d_out_cols, out->nnz * sizeof(int)));
-    printf("Now allocating %lu bytes...\n", (unsigned long)out->nnz * sizeof(float));
+    CHECK_CUDA(cudaMalloc((void**)&d_out_row_offsets, (out->cols + 1) * sizeof(size_t)));
+    CHECK_CUDA(cudaMalloc((void**)&d_out_cols, out->nnz * sizeof(size_t)));
     CHECK_CUDA(cudaMalloc((void**)&d_out_values, out->nnz * sizeof(float)));
     // ? Create cuda events to measure time
     cudaEvent_t start, stop;
     CHECK_CUDA(cudaEventCreate(&start));
     CHECK_CUDA(cudaEventCreate(&stop));
     // ? Copy data from host to device for Input Matrix
-    CHECK_CUDA(cudaMemcpy(d_in_row_offsets, in->row_offsets, (in->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy(d_in_cols, in->col_indices, in->nnz * sizeof(int), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_in_row_offsets, in->row_offsets, (in->rows + 1) * sizeof(size_t), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_in_cols, in->col_indices, in->nnz * sizeof(size_t), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_in_values, in->values, in->nnz * sizeof(float), cudaMemcpyHostToDevice));
     // ? Find buffer size to perform the transpose
     cusparseCsr2cscEx2_bufferSize(
@@ -70,8 +68,8 @@ int cuSparseCSRt(csr_matrix* in, csr_matrix* out) {
     // ? Record time after performing the transpose operation
     CHECK_CUDA(cudaEventRecord(stop));
     // ? Copy data from device to host for Output Matrix
-    CHECK_CUDA(cudaMemcpy(out->row_offsets, d_out_row_offsets, out->rows * sizeof(int), cudaMemcpyDeviceToHost));
-    CHECK_CUDA(cudaMemcpy(out->col_indices, d_out_cols, out->nnz * sizeof(int), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(out->row_offsets, d_out_row_offsets, (out->cols + 1) * sizeof(size_t), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(out->col_indices, d_out_cols, out->nnz * sizeof(size_t), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(out->values, d_out_values, out->nnz * sizeof(float), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaEventSynchronize(stop));
     float milliseconds = 0;
@@ -82,6 +80,22 @@ int cuSparseCSRt(csr_matrix* in, csr_matrix* out) {
     output.open ("logs/results.log", std::ios::out | std::ios_base::app);
     output << "N_mat, " << "Cusparse, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
     output.close();
+
+    // Check if transpose was successful
+    printf("Now checking if transpose was successful\n");
+    if (is_transpose(in, out)) {
+        printf("Transpose is correct\n");
+    } else {
+        printf("Transpose is incorrect\n");
+        // save to log file
+        std::ofstream output;
+        output.open("logs/cusparse_transpose_err.log", std::ios::out);
+        output << "Original Matrix:\n";
+        //pretty_print_csr_matrix(in, output);
+        output << "\n\nTransposed Matrix:\n";
+        //pretty_print_csr_matrix(out, output);
+        output.close();
+    }
 
     //TODO: correct output
     // ? Free memory on device

@@ -357,7 +357,7 @@ int transposeCSRToCSC(const thrust::host_vector<int>& h_values, const thrust::ho
     CHECK_CUDA(cudaEventSynchronize(stop));
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
-    printf("Time for executing cuSPARSECSRt operation: %f ms\n", milliseconds);
+    printf("Time for executing transpose operation: %f ms\n", milliseconds);
     std::ofstream output;
     output.open ("logs/results.log", std::ios::out | std::ios_base::app);
     output << "N_mat, " << "CSR" << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";

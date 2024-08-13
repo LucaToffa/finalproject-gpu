@@ -49,9 +49,9 @@ int cuSparse_transpose_example() {
     csr_matrix* csr = load_csr_matrix("matrices/circuit204.mtx");
     csr_matrix* csr_t = new_csr_matrix(csr->rows, csr->cols, csr->nnz, csr->row_offsets, csr->col_indices, csr->values);
     print_csr_matrix(csr);
-    pretty_print_csr_matrix(csr);
+    pretty_print_csr_matrix(csr, std::cout);
     cuSparseCSRt(csr, csr_t);
-    pretty_print_csr_matrix(csr_t);
+    pretty_print_csr_matrix(csr_t, std::cout);
     if (is_transpose(csr, csr_t)) {
         printf("Transpose is correct\n");
     } else {
@@ -105,7 +105,7 @@ int complete_benchmark() {
         coo_matrix* coo = load_coo_matrix(matrix_list[i]);
         //load as csr
         csr_matrix* csr = load_csr_matrix(matrix_list[i]);
-        csr_matrix* csr_t = new_csr_matrix(csr->rows, csr->cols, csr->nnz, csr->row_offsets, csr->col_indices, csr->values);
+        csr_matrix* csr_t = new_csr_matrix(csr->cols, csr->rows, csr->nnz);
         //load as uncompressed
         float* uncompressed = coo_to_mat(coo);
         assert(coo->rows == coo->cols);

@@ -1,6 +1,7 @@
 #include "../include/csr.h"
 #include "../include/debug.h"
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <cstring>
@@ -22,6 +23,21 @@ csr_matrix* new_csr_matrix(size_t rows, size_t cols, size_t nnz, size_t *row_off
         csr->col_indices[i] = col_indices[i];
         csr->values[i] = values[i];
     }
+    return csr;
+}
+
+csr_matrix* new_csr_matrix(size_t rows, size_t cols, size_t nnz) {
+    csr_matrix *csr = new csr_matrix {
+        .rows = rows,
+        .cols = cols,
+        .nnz = nnz,
+        .row_offsets = new size_t[rows + 1],
+        .col_indices = new size_t[nnz],
+        .values = new float[nnz]
+    };
+    memset(csr->row_offsets, 0, (rows + 1) * sizeof(size_t));
+    memset(csr->col_indices, 0, nnz * sizeof(size_t));
+    memset(csr->values, 0, nnz * sizeof(float));
     return csr;
 }
 
@@ -85,21 +101,30 @@ csr_matrix* load_csr_matrix(void) {
     return csr;
 }
 
-bool is_transpose(const csr_matrix *csr, const csr_matrix *csr_t) {
+bool is_transpose(const csr_matrix * const csr, const csr_matrix * const csr_t) {
     if (csr->rows != csr_t->cols || csr->cols != csr_t->rows || csr->nnz != csr_t->nnz) {
+        printf("Matrices have different dimensions\n");
         return false;
     }
-    for (int i = 0; i < csr->rows; i++) {
-        for (int j = 0; j < csr->cols; j++) {
+    for (size_t i = 0; i < csr->rows; i++) {
+        for (size_t j = 0; j < csr->cols; j++) {
             bool found = false;
-            for (int k = csr->row_offsets[i]; k < csr->row_offsets[i + 1]; k++) {
+            for (size_t k = csr->row_offsets[i]; k < csr->row_offsets[i + 1]; k++) {
+                if (csr->nnz < k) {
+                    printf("Error: k = %zu\n", k);
+                    return false;
+                }
                 if (csr->col_indices[k] == j) {
                     found = false;
-                    for (int l = csr_t->row_offsets[j]; l < csr_t->row_offsets[j + 1]; l++) {
+                    for (size_t l = csr_t->row_offsets[j]; l < csr_t->row_offsets[j + 1]; l++) {
+                        if (csr_t->nnz < l) {
+                            printf("Error: l = %zu\n", l);
+                            return false;
+                        }
                         if (csr_t->col_indices[l] == i) {
                             // since they are floats we need to compare them with a tolerance
-                            if (std::fabs((float)csr->values[k] - (float)csr_t->values[l]) > 1e-3) {
-                                printf("Unequal - Error at mat[%d, %d]\n", i, j);
+                            if (std::fabs(csr->values[k] - csr_t->values[l]) > 1e-3) {
+                                printf("Unequal - Error at mat[%zu, %zu]\n", i, j);
                                 return false;
                             }
                             found = true;
@@ -107,16 +132,16 @@ bool is_transpose(const csr_matrix *csr, const csr_matrix *csr_t) {
                         }
                     }
                     if (!found && i != j && i != csr->cols - 1) {
-                        printf("Not Found - Error at mat[%d, %d]\n", i, j);
+                        printf("Not Found - Error at mat[%zu, %zu]\n", i, j);
                         return false;
                     }
                     break;
                 }
             }
             if (!found) {
-                for (int l = csr_t->row_offsets[j]; l < csr_t->row_offsets[j + 1]; l++) {
+                for (size_t l = csr_t->row_offsets[j]; l < csr_t->row_offsets[j + 1]; l++) {
                     if (csr_t->col_indices[l] == i) {
-                        printf("Extra - Error at mat[%d, %d]\n", i, j);
+                        printf("Extra - Error at mat[%zu, %zu]\n", i, j);
                         return false;
                     }
                 }
@@ -130,37 +155,37 @@ int print_csr_matrix(const csr_matrix *csr) {
     std::cout << "Debug Print - CSR Matrix:" << std::endl;
     std::cout << "Rows: " << csr->rows << " Cols: " << csr->cols << " NNZ: " << csr->nnz << std::endl;
     std::cout << "Row offsets: ";
-    for(int i = 0; i < csr->rows + 1; i++){ std::cout << csr->row_offsets[i] << " "; }
+    for(size_t i = 0; i < csr->rows + 1; i++){ std::cout << csr->row_offsets[i] << " "; }
     std::cout << std::endl;
     std::cout << "Col indices: ";
-    for(int i = 0; i < csr->nnz; i++){ std::cout << csr->col_indices[i] << " "; }
+    for(size_t i = 0; i < csr->nnz; i++){ std::cout << csr->col_indices[i] << " "; }
     std::cout << std::endl;
     std::cout << "Values: ";
-    for(int i = 0; i < csr->nnz; i++){ std::cout << csr->values[i] << " "; }
+    for(size_t i = 0; i < csr->nnz; i++){ std::cout << csr->values[i] << " "; }
     std::cout << std::endl;
     return 0;
 }
 
-int pretty_print_csr_matrix(const csr_matrix *csr) {
+int pretty_print_csr_matrix(const csr_matrix *csr, std::ostream &out) {
     // this method prints the matrix in a more human readable way
     // it is useful for debugging
-    std::cout << "Pretty Print - CSR Matrix:" << std::endl;
-    std::cout << "Rows: " << csr->rows << " Cols: " << csr->cols << " NNZ: " << csr->nnz << std::endl;
-    for (int i = 0; i < csr->rows; i++) {
-        for (int j = 0; j < csr->cols; j++) {
+    out << "Pretty Print - CSR Matrix:" << std::endl;
+    out << "Rows: " << csr->rows << " Cols: " << csr->cols << " NNZ: " << csr->nnz << std::endl;
+    for (size_t i = 0; i < csr->rows; i++) {
+        for (size_t j = 0; j < csr->cols; j++) {
             bool found = false;
-            for (int k = csr->row_offsets[i]; k < csr->row_offsets[i + 1]; k++) {
+            for (size_t k = csr->row_offsets[i]; k < csr->row_offsets[i + 1]; k++) {
                 if (csr->col_indices[k] == j) {
-                    std::cout << csr->values[k] << "\t";
+                    out << csr->values[k] << "\t";
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                std::cout << "0\t";
+                out << "0\t";
             }
         }
-        std::cout << std::endl;
+        out << std::endl;
     }
     return 0;
 }

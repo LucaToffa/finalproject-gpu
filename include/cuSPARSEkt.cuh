@@ -9,6 +9,6 @@
     * @param {csr_matrix *} out - Output CSR matrix
     * @return {int} 0 if successful, 1 otherwise
  */
-int cuSparseCSRt(csr_matrix *in, csr_matrix *out);
+int cuSparseCSRt(const csr_matrix *in, csr_matrix *out);
 
 #endif

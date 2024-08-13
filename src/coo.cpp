@@ -71,7 +71,6 @@ int print_coo_metadata(const coo_matrix *coo) {
     return 0;
 }
 
-//printing everything is too much, just print the first 10 elements
 int print_coo_less(const coo_matrix *coo) {
     std::cout << "COO matrix: " << std::endl;
     std::cout << "rows: " << coo->rows << " cols: " << coo->cols << " nnz: " << coo->nnz << std::endl;
