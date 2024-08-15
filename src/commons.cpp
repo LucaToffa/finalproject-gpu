@@ -107,3 +107,31 @@ float* coo_to_mat(const coo_matrix *coo) {
     }
     return mat;
 }
+
+float* coo_to_mat_padded(const coo_matrix *coo) {
+    int N = next_power_of_2(std::max(coo->rows, coo->cols));
+    float* mat = new float[N * N];
+    memset(mat, 0, (N * N) * sizeof(float));
+    for (int i = 0; i < coo->nnz; i++) {
+        int idx = (coo->el[i].row * N) + coo->el[i].col;
+        if((idx > (N * N)) || (idx < 0)) {
+            printf("Out of bound matrix index during conversion at %d, index is %d\n", i, idx);
+            printf("COO cols: %ld, rows: %ld, el.row: %ld, el.col: %ld\n", coo->cols, coo->rows, coo->el[i].col, coo->el[i].row);
+            delete[] mat;
+            return NULL;
+        }
+        mat[idx] = coo->el[i].val;
+    }
+    return mat;
+}
+
+int next_power_of_2(int n) {
+    int p = 1;
+    if (n && !(n & (n - 1))) {
+        return n;
+    }
+    while (p < n) {
+        p <<= 1;
+    }
+    return p;
+}

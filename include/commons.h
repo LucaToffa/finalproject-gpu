@@ -99,5 +99,17 @@ float* csr_to_mat(const csr_matrix *csr);
     * @returns {float *} - Pointer to the dense square matrix
  */
 float* coo_to_mat(const coo_matrix *coo);
+/**
+    * @brief Converts a COO matrix to a dense square matrix, padded to the next power of 2
+    * @param {coo_matrix *} coo - Pointer to the COO matrix
+    * @returns {float *} - Pointer to the padded dense square matrix
+ */
+float* coo_to_mat_padded(const coo_matrix *coo);
+/**
+    * @brief Given an integer, returns the next power of 2 greater than or equal to the integer
+    * @param {int} n - The given integer
+    * @returns {int} - The next power of 2 greater than or equal to the integer
+ */
+int next_power_of_2(int n);
 
 #endif

@@ -88,13 +88,13 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
     } else {
         printf("Transpose is incorrect\n");
         // save to log file
-        std::ofstream output;
-        output.open("logs/cusparse_transpose_err.log", std::ios::out);
-        output << "Original Matrix:\n";
-        //pretty_print_csr_matrix(in, output);
-        output << "\n\nTransposed Matrix:\n";
-        //pretty_print_csr_matrix(out, output);
-        output.close();
+        std::ofstream logstream;
+        logstream.open("logs/cusparse_transpose_err.log", std::ios::out);
+        logstream << "Original Matrix:\n";
+        pretty_print_csr_matrix(in, logstream);
+        logstream << "\n\nTransposed Matrix:\n";
+        pretty_print_csr_matrix(out, logstream);
+        logstream.close();
     }
 
     //TODO: correct output

@@ -144,13 +144,13 @@ int block_trasposition(float* mat, unsigned int N) {
     
     //call kernel as many times as needed
     //first a dummy kernel
-    block_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t);
+    block_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t, N);
     cudaEvent_t startK, stopK;
     CHECK_CUDA(cudaEventCreate(&startK));
     CHECK_CUDA(cudaEventCreate(&stopK));
     CHECK_CUDA(cudaEventRecord(startK));
     for(int i = 0; i < TRANSPOSITIONS; i++){
-        block_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t);
+        block_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t, N);
     }
     CHECK_CUDA(cudaEventRecord(stopK));
     CHECK_CUDA(cudaEventSynchronize(stopK));
@@ -176,7 +176,7 @@ int block_trasposition(float* mat, unsigned int N) {
     //printf("%f, %f, %f, %f\n", milliseconds, ogbs, millisecondsK, kgbs);
     
     std::ofstream output;
-    output.open ("logs/results.log", std::ios::out | std::ios_base::app);
+    output.open("logs/results.log", std::ios::out | std::ios_base::app);
     output << "N_mat, " << "block, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
     output.close();
 

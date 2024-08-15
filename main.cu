@@ -93,7 +93,7 @@ int cuda_transpose_example() {
 }
 
 int complete_benchmark() {
-    unsigned int size;
+    unsigned int dense_mat_size;
     PRINTF("main.cu) Now Entering Loop...\n");
     std::ofstream output;
     output.open("logs/results.log");
@@ -107,9 +107,9 @@ int complete_benchmark() {
         csr_matrix* csr = load_csr_matrix(matrix_list[i]);
         csr_matrix* csr_t = new_csr_matrix(csr->cols, csr->rows, csr->nnz);
         //load as uncompressed
-        float* uncompressed = coo_to_mat(coo);
+        float* uncompressed = coo_to_mat_padded(coo);
         assert(coo->rows == coo->cols);
-        size = coo->rows;
+        dense_mat_size = next_power_of_2(std::max(coo->rows, coo->cols));
         /*
         each kernel + any other necessary operations / checks
         save to output file: mat | algo | time | BW | error
@@ -124,11 +124,11 @@ int complete_benchmark() {
             printf("error in csr transpose, matrix #%d\n", i);
         }
         PRINTF("main.cu) calling block kernel\n");
-        if(block_trasposition(uncompressed, size)) {
+        if(block_trasposition(uncompressed, dense_mat_size)) {
             printf("error in block transpose, matrix #%d\n", i);
         }
         PRINTF("main.cu) calling conflict kernel\n");
-        if(conflict_transposition(uncompressed, size)) {
+        if(conflict_transposition(uncompressed, dense_mat_size)) {
             printf("error in conflict transpose, matrix #%d\n", i);
         }
         PRINTF("main.cu) calling cuSparseCSRt kernel\n");

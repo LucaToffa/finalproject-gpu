@@ -64,7 +64,7 @@ __global__ void scatterToTransposed(const int* values, const int* col_indices, c
 
 
 //old version of block transpose algorithm to check against the new ones
-__global__ void block_transpose(float *input, float *output){
+__global__ void block_transpose(float *input, float *output, int N){
     __shared__ float tile[TILE_SIZE][TILE_SIZE+1];
     
     //input to shared offsets

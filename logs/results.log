@@ -1,0 +1,6 @@
+#N_mat, algorithm, OpTime, Op-GB/s, KTime, K-GB/s#
+N_mat, COO, OpTime, Op-GB/s, 0.320768K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.175648K-GB/s
+N_mat, block, OpTime, Op-GB/s, 2.26858K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 3.97629K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 10.6328K-GB/s
