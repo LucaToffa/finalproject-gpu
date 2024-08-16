@@ -6,30 +6,30 @@
 
 /**
     * @brief Struct to represent a Coordinate list element
-    * @param {unsigned long} row - Row index
-    * @param {unsigned long} col - Column index
+    * @param {int} row - Row index
+    * @param {int} col - Column index
     * @param {float} val - Value of the element
  */
 struct coo_element {
-    size_t row;
-    size_t col;
+    int row;
+    int col;
     float val;
 };
 
 /**
     * @brief Struct to represent a Coordinate list matrix
-    * @param {unsigned long} rows - Number of rows
-    * @param {unsigned long} cols - Number of columns
-    * @param {unsigned long} nnz - Number of non-zero elements
+    * @param {int} rows - Number of rows
+    * @param {int} cols - Number of columns
+    * @param {int} nnz - Number of non-zero elements
     * @param {coo_element[]} el - Array of non-zero elements
-    * -> @param {unsigned long} el[].row - Row index
-    * -> @param {unsigned long} el[].col - Column index
+    * -> @param {int} el[].row - Row index
+    * -> @param {int} el[].col - Column index
     * -> @param {float} el[].val - Value of the element
 **/
 struct coo_matrix {
-    size_t rows;
-    size_t cols;
-    size_t nnz;
+    int rows;
+    int cols;
+    int nnz;
     coo_element *el;
 };
 

@@ -105,6 +105,11 @@ int complete_benchmark() {
         coo_matrix* coo = load_coo_matrix(matrix_list[i]);
         //load as csr
         csr_matrix* csr = load_csr_matrix(matrix_list[i]);
+        std::ofstream csr_log_output;
+        csr_log_output.open("logs/csr.log", std::ios::out | std::ios_base::app);
+        csr_log_output << "Matrix: " << matrix_list[i] << "\n";
+        pretty_print_csr_matrix(csr, csr_log_output);
+        csr_log_output.close();
         csr_matrix* csr_t = new_csr_matrix(csr->cols, csr->rows, csr->nnz);
         //load as uncompressed
         float* uncompressed = coo_to_mat_padded(coo);

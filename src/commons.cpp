@@ -59,8 +59,8 @@ csr_matrix coo_to_csr(const coo_matrix *coo) {
         coo->rows,
         coo->cols,
         coo->nnz,
-        new size_t[coo->rows + 1],
-        new size_t[coo->nnz],
+        new int[coo->rows + 1],
+        new int[coo->nnz],
         new float[coo->nnz]
     };
     return csr;
@@ -99,7 +99,7 @@ float* coo_to_mat(const coo_matrix *coo) {
         int idx = (coo->el[i].row * coo->cols) + coo->el[i].col;
         if((idx > (coo->cols * coo->rows)) || (idx < 0)) {
             printf("Out of bound matrix index during conversion at %d, index is %d\n", i, idx);
-            printf("COO cols: %ld, rows: %ld, el.row: %ld, el.col: %ld\n", coo->cols, coo->rows, coo->el[i].col, coo->el[i].row);
+            printf("COO cols: %d, rows: %d, el.row: %d, el.col: %d\n", coo->cols, coo->rows, coo->el[i].col, coo->el[i].row);
             delete[] mat;
             return NULL;
         }
@@ -116,7 +116,7 @@ float* coo_to_mat_padded(const coo_matrix *coo) {
         int idx = (coo->el[i].row * N) + coo->el[i].col;
         if((idx > (N * N)) || (idx < 0)) {
             printf("Out of bound matrix index during conversion at %d, index is %d\n", i, idx);
-            printf("COO cols: %ld, rows: %ld, el.row: %ld, el.col: %ld\n", coo->cols, coo->rows, coo->el[i].col, coo->el[i].row);
+            printf("COO cols: %d, rows: %d, el.row: %d, el.col: %d\n", coo->cols, coo->rows, coo->el[i].col, coo->el[i].row);
             delete[] mat;
             return NULL;
         }

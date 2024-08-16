@@ -18,12 +18,12 @@ coo_matrix* load_coo_matrix(const char *filename) {
         line = fgets(line, 1024, f); 
     } while (line[0] < '0' || line[0] > '9');
     fseek(f, -strlen(line), SEEK_CUR);
-    fscanf(f, "%lu %lu %lu", &coo->rows, &coo->cols, &coo->nnz);
-    PRINTF("Metadata: { Rows: %zu\t, Cols: %zu\t, NNZ: %zu }\n", coo->rows, coo->cols, coo->nnz);
+    fscanf(f, "%d %d %d", &coo->rows, &coo->cols, &coo->nnz);
+    PRINTF("Metadata: { Rows: %d\t, Cols: %d\t, NNZ: %d }\n", coo->rows, coo->cols, coo->nnz);
     coo->el = new coo_element[coo->nnz];
-    size_t row, col;
+    int row, col;
     for(int i = 0; i < coo->nnz; i++){ 
-        fscanf(f, "%lu %lu %f", &row, &col, &coo->el[i].val); 
+        fscanf(f, "%d %d %f", &row, &col, &coo->el[i].val); 
         row--; col--; // 1-indexed to 0-indexed
         coo->el[i].row = row;
         coo->el[i].col = col;
