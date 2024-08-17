@@ -77,35 +77,39 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
     }
     // Example CSR matrix
     //assign real values instead of random
-    thrust::host_vector<float> h_values(8);// = {10, 20, 30, 40, 50, 60, 70, 80};
-    h_values[0] = 10; h_values[1] = 20; h_values[2] = 30; h_values[3] = 40; //TEMP just to avoid compiler error
-    h_values[4] = 50; h_values[5] = 60; h_values[6] = 70; h_values[7] = 80;
-    thrust::host_vector<int> h_col_indices(8);// = {0, 2, 1, 0, 1, 2, 0, 1};
-    h_col_indices[0] = 0; h_col_indices[1] = 2; h_col_indices[2] = 1; h_col_indices[3] = 0;
-    h_col_indices[4] = 1; h_col_indices[5] = 2; h_col_indices[6] = 0; h_col_indices[7] = 1;
-    thrust::host_vector<int> h_row_ptr(5);// = {0, 2, 4, 7, 8};
-    h_row_ptr[0] = 0; h_row_ptr[1] = 2; h_row_ptr[2] = 4; h_row_ptr[3] = 7; h_row_ptr[4] = 8;
-    int num_rows = 4;
-    int num_cols = 3;
+    // thrust::host_vector<float> h_values(8);// = {10, 20, 30, 40, 50, 60, 70, 80};
+    // h_values[0] = 10; h_values[1] = 20; h_values[2] = 30; h_values[3] = 40; //TEMP just to avoid compiler error
+    // h_values[4] = 50; h_values[5] = 60; h_values[6] = 70; h_values[7] = 80;
+    // thrust::host_vector<int> h_col_indices(8);// = {0, 2, 1, 0, 1, 2, 0, 1};
+    // h_col_indices[0] = 0; h_col_indices[1] = 2; h_col_indices[2] = 1; h_col_indices[3] = 0;
+    // h_col_indices[4] = 1; h_col_indices[5] = 2; h_col_indices[6] = 0; h_col_indices[7] = 1;
+    // thrust::host_vector<int> h_row_ptr(5);// = {0, 2, 4, 7, 8};
+    // h_row_ptr[0] = 0; h_row_ptr[1] = 2; h_row_ptr[2] = 4; h_row_ptr[3] = 7; h_row_ptr[4] = 8;
+    // int num_rows = 4;
+    // int num_cols = 3;
 
-    // Device vectors for transposed matrix
-    thrust::device_vector<float> d_t_values;
-    thrust::device_vector<int> d_t_row_indices;
-    thrust::device_vector<int> d_t_col_ptr;
+    // // Device vectors for transposed matrix
+    // thrust::device_vector<float> d_t_values;
+    // thrust::device_vector<int> d_t_row_indices;
+    // thrust::device_vector<int> d_t_col_ptr;
 
-    // Transpose the matrix
-    transposeCSRToCSC(h_values, h_col_indices, h_row_ptr, num_rows, num_cols, d_t_values, d_t_row_indices, d_t_col_ptr);
+    // // Transpose the matrix
+    // transposeCSRToCSC(h_values, h_col_indices, h_row_ptr, num_rows, num_cols, d_t_values, d_t_row_indices, d_t_col_ptr);
 
-    // Copy the results back to the host and print
-    thrust::host_vector<float> h_t_values = d_t_values;
-    thrust::host_vector<int> h_t_row_indices = d_t_row_indices;
-    thrust::host_vector<int> h_t_col_ptr = d_t_col_ptr;
+    // // Copy the results back to the host and print
+    // thrust::host_vector<float> h_t_values = d_t_values;
+    // thrust::host_vector<int> h_t_row_indices = d_t_row_indices;
+    // thrust::host_vector<int> h_t_col_ptr = d_t_col_ptr;
 
-    printf("Original Matrix:\n");
-    pretty_print_matrix(h_values, h_col_indices, h_row_ptr, num_rows, num_cols);
+    // printf("Original Matrix:\n");
+    // pretty_print_matrix(h_values, h_col_indices, h_row_ptr, num_rows, num_cols);
 
-    printf("Transposed Matrix:\n");
-    pretty_print_matrix(h_t_values, h_t_row_indices, h_t_col_ptr, num_rows, num_cols); // ! error invert num_rows and num_cols
+    // printf("Transposed Matrix:\n");
+    // pretty_print_matrix(h_t_values, h_t_row_indices, h_t_col_ptr, num_rows, num_cols); // ! error invert num_rows and num_cols
+
+    
+    transposeCSRToCSC_cuda(csr, csr_t);
+
 
     PRINTF("Transposition Completed Succesfully.\n");
     PRINTF("--------------------\n");
@@ -304,6 +308,96 @@ int conflict_transposition(float* mat, unsigned int N) {
     CHECK_CUDA(cudaFree(d_mat));
     CHECK_CUDA(cudaFree(d_mat_t));
     free(mat_t);
+    return 0;
+}
+
+int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
+    assert(csr != NULL && csr_t != NULL);
+    assert(csr->rows == csr_t->cols && csr->cols == csr_t->rows);
+    PRINTF("Transpose CSR to CSC Cuda Method Called: transposeCSRToCSC_cuda().\n");
+    if ((cudaSetDevice(0)) != cudaSuccess) {
+        PRINTF("Failed to set CUDA device\n");
+        return 1;
+    }
+    cudaEvent_t start, stop;
+    CHECK_CUDA(cudaEventCreate(&start));
+    CHECK_CUDA(cudaEventCreate(&stop));
+
+    // Copy input CSR data to device
+    int *d_col_indices, *d_col_counts;
+    CHECK_CUDA(cudaMalloc((void**)&d_col_indices, csr->nnz * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void**)&d_col_counts, csr->cols * sizeof(int)));
+
+    CHECK_CUDA(cudaMemcpy(d_col_indices, csr->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemset(d_col_counts, 0, csr->cols * sizeof(int)));
+
+    CHECK_CUDA(cudaEventRecord(start));
+
+    countNNZPerColumn<<<((csr->nnz + 255) / 256), 256>>>(d_col_indices, d_col_counts, csr->nnz);
+
+    // ? Here we compute the exclusive scan from the column counts in the csr_t->col_ptr
+    // TODO: Check if this works
+    thrust::device_vector<int> d_col_ptr(csr->cols + 1);
+    thrust::exclusive_scan(d_col_counts, d_col_counts + csr->cols, d_col_ptr.begin());
+    cudaCheckError();
+
+    float *d_values, *d_t_values;
+    int *d_t_col_indices;
+    int *d_row_offsets, *d_t_row_offsets;
+
+    CHECK_CUDA(cudaMalloc((void**)&d_values, csr->nnz * sizeof(float)));
+    CHECK_CUDA(cudaMalloc((void**)&d_t_values, csr->nnz * sizeof(float)));
+    CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices, csr->nnz * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void**)&d_row_offsets, (csr->rows + 1) * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void**)&d_t_row_offsets, (csr->cols + 1) * sizeof(int)));
+
+    CHECK_CUDA(cudaMemcpy(d_values, csr->values, csr->nnz * sizeof(float), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_row_offsets, csr->row_offsets, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemset(d_t_row_offsets, 0, (csr->cols + 1) * sizeof(int)));
+    CHECK_CUDA(cudaMemset(d_t_col_indices, 0, csr->nnz * sizeof(int)));
+    CHECK_CUDA(cudaMemset(d_t_values, 0, csr->nnz * sizeof(float)));
+
+    scatterToTransposed<<<(csr->rows + 255) / 256, 256>>>(d_values, d_col_indices, d_row_offsets, d_t_values, d_t_col_indices, d_t_row_offsets, csr->rows);
+
+    CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, d_t_row_offsets, (csr->cols + 1) * sizeof(int), cudaMemcpyDeviceToHost));
+
+    CHECK_CUDA(cudaEventRecord(stop));
+    CHECK_CUDA(cudaEventSynchronize(stop));
+    float milliseconds = 0;
+    CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
+    printf("Time for executing transpose operation: %f ms\n", milliseconds);
+    std::ofstream output;
+    output.open ("logs/results.log", std::ios::out | std::ios_base::app);
+    output << "N_mat, " << "CSR" << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    output.close();
+    cudaCheckError();
+
+    CHECK_CUDA(cudaFree(d_col_indices));
+    CHECK_CUDA(cudaFree(d_col_counts));
+    CHECK_CUDA(cudaFree(d_values));
+    CHECK_CUDA(cudaFree(d_t_values));
+    CHECK_CUDA(cudaFree(d_t_col_indices));
+    CHECK_CUDA(cudaFree(d_row_offsets));
+    CHECK_CUDA(cudaFree(d_t_row_offsets));
+
+    PRINTF("Transpose Completed.\n");
+
+    if (is_transpose(csr, csr_t)) {
+        PRINTF("Transpose is correct.\n");
+    } else {
+        PRINTF("Transpose is incorrect.\n");
+        std::ofstream errlogstream;
+        errlogstream.open("logs/transpose_err.log", std::ios::out | std::ios::app);
+        errlogstream << "Transpose Error: CSR to CSC\n";
+        errlogstream << "Original Matrix:\n";
+        pretty_print_csr_matrix(csr, errlogstream);
+        errlogstream << "\n\nTranposed Matrix:\n";
+        pretty_print_csr_matrix(csr_t, errlogstream);
+        errlogstream.close();
+    }
+
     return 0;
 }
 

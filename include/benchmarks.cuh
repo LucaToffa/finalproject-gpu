@@ -28,6 +28,7 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t);
  */
 int block_trasposition(float* mat, unsigned int N);
 int conflict_transposition(float* mat, unsigned int N);
+int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t);
 int transposeCSRToCSC(const thrust::host_vector<float>& h_values, const thrust::host_vector<int>& h_col_indices,
                        const thrust::host_vector<int>& h_row_ptr, int num_rows, int num_cols,
                        thrust::device_vector<float>& d_t_values, thrust::device_vector<int>& d_t_row_indices,

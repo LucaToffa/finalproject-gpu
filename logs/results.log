@@ -1,56 +1,56 @@
 #N_mat, algorithm, OpTime, Op-GB/s, KTime, K-GB/s#
-N_mat, COO, OpTime, Op-GB/s, 1.11213K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.51568K-GB/s
-N_mat, block, OpTime, Op-GB/s, 2.24813K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 3.39926K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 21.751K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 0.01856K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.334848K-GB/s
-N_mat, block, OpTime, Op-GB/s, 0.903264K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 0.93408K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.813056K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 0.732032K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.376544K-GB/s
-N_mat, block, OpTime, Op-GB/s, 11.2675K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 12.0759K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.149248K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 1.45584K-GB/s
-N_mat, CSROpTime, Op-GB/s, 2.74358K-GB/s
-N_mat, block, OpTime, Op-GB/s, 15.608K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 18.157K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.16032K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 0.067456K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.110208K-GB/s
-N_mat, block, OpTime, Op-GB/s, 11.1206K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 14.5972K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.124736K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 0.074944K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.10896K-GB/s
-N_mat, block, OpTime, Op-GB/s, 10.0607K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 13.1648K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.120928K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 0.078432K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.120544K-GB/s
-N_mat, block, OpTime, Op-GB/s, 10.7261K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 14.1786K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.377504K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 0.132192K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.13792K-GB/s
-N_mat, block, OpTime, Op-GB/s, 1.95824K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 3.37709K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.169888K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 0.068032K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.113696K-GB/s
-N_mat, block, OpTime, Op-GB/s, 9.32918K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 12.2187K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.128864K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 0.110112K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.146176K-GB/s
-N_mat, block, OpTime, Op-GB/s, 8.68445K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 12.6447K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.253632K-GB/s
-N_mat, COO, OpTime, Op-GB/s, 0.03536K-GB/s
-N_mat, CSROpTime, Op-GB/s, 0.124384K-GB/s
-N_mat, block, OpTime, Op-GB/s, 9.23562K-GB/s
-N_mat, Conflict, OpTime, Op-GB/s, 12.0015K-GB/s
-N_mat, Cusparse, OpTime, Op-GB/s, 0.346144K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.557824K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.92768K-GB/s
+N_mat, block, OpTime, Op-GB/s, 2.88771K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 5.8937K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 11.1769K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.18496K-GB/s
+N_mat, CSROpTime, Op-GB/s, 1.29443K-GB/s
+N_mat, block, OpTime, Op-GB/s, 1.43478K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 0.47312K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.17088K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.26384K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.436544K-GB/s
+N_mat, block, OpTime, Op-GB/s, 10.5267K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 13.0136K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.143648K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.0784K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.2088K-GB/s
+N_mat, block, OpTime, Op-GB/s, 10.3174K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 12.6415K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.166816K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.109344K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.442848K-GB/s
+N_mat, block, OpTime, Op-GB/s, 10.1565K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 12.3535K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.11472K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.154016K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.200224K-GB/s
+N_mat, block, OpTime, Op-GB/s, 10.1469K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 12.6261K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.148736K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.115072K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.260768K-GB/s
+N_mat, block, OpTime, Op-GB/s, 9.42301K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 13.2021K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.156256K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.116832K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.483808K-GB/s
+N_mat, block, OpTime, Op-GB/s, 1.80886K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 3.24589K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.168864K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.20656K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.523328K-GB/s
+N_mat, block, OpTime, Op-GB/s, 9.64237K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 11.2344K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.113152K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.02992K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.199392K-GB/s
+N_mat, block, OpTime, Op-GB/s, 9.90195K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 12.2437K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.445568K-GB/s
+N_mat, COO, OpTime, Op-GB/s, 0.067712K-GB/s
+N_mat, CSROpTime, Op-GB/s, 0.200832K-GB/s
+N_mat, block, OpTime, Op-GB/s, 9.20582K-GB/s
+N_mat, Conflict, OpTime, Op-GB/s, 11.9367K-GB/s
+N_mat, Cusparse, OpTime, Op-GB/s, 0.345408K-GB/s
