@@ -13,7 +13,7 @@ __global__ void conflict_transpose(float *input, float *output);
 __global__ void basic_transpose(float *input, float *output, int N);
 __global__ void countNNZPerColumn(const int* col_indices, int* col_counts, int nnz);
 // Kernel to scatter values and row indices to transposed matrix
-__global__ void scatterToTransposed(const int* values, const int* col_indices, const int* row_ptr,
-                                    int* t_values, int* t_row_indices, int* t_col_ptr, int num_rows);
+__global__ void scatterToTransposed(const float* values, const int* col_indices, const int* row_ptr,
+                                    float* t_values, int* t_row_indices, int* t_col_ptr, int num_rows);
 
 #endif

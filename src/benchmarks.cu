@@ -77,7 +77,7 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
     }
     // Example CSR matrix
     //assign real values instead of random
-    thrust::host_vector<int> h_values(8);// = {10, 20, 30, 40, 50, 60, 70, 80};
+    thrust::host_vector<float> h_values(8);// = {10, 20, 30, 40, 50, 60, 70, 80};
     h_values[0] = 10; h_values[1] = 20; h_values[2] = 30; h_values[3] = 40; //TEMP just to avoid compiler error
     h_values[4] = 50; h_values[5] = 60; h_values[6] = 70; h_values[7] = 80;
     thrust::host_vector<int> h_col_indices(8);// = {0, 2, 1, 0, 1, 2, 0, 1};
@@ -89,7 +89,7 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
     int num_cols = 3;
 
     // Device vectors for transposed matrix
-    thrust::device_vector<int> d_t_values;
+    thrust::device_vector<float> d_t_values;
     thrust::device_vector<int> d_t_row_indices;
     thrust::device_vector<int> d_t_col_ptr;
 
@@ -97,7 +97,7 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
     transposeCSRToCSC(h_values, h_col_indices, h_row_ptr, num_rows, num_cols, d_t_values, d_t_row_indices, d_t_col_ptr);
 
     // Copy the results back to the host and print
-    thrust::host_vector<int> h_t_values = d_t_values;
+    thrust::host_vector<float> h_t_values = d_t_values;
     thrust::host_vector<int> h_t_row_indices = d_t_row_indices;
     thrust::host_vector<int> h_t_col_ptr = d_t_col_ptr;
 
@@ -307,9 +307,9 @@ int conflict_transposition(float* mat, unsigned int N) {
     return 0;
 }
 
-int transposeCSRToCSC(const thrust::host_vector<int>& h_values, const thrust::host_vector<int>& h_col_indices,
+int transposeCSRToCSC(const thrust::host_vector<float>& h_values, const thrust::host_vector<int>& h_col_indices,
                        const thrust::host_vector<int>& h_row_ptr, int num_rows, int num_cols,
-                       thrust::device_vector<int>& d_t_values, thrust::device_vector<int>& d_t_row_indices,
+                       thrust::device_vector<float>& d_t_values, thrust::device_vector<int>& d_t_row_indices,
                        thrust::device_vector<int>& d_t_col_ptr) {
     PRINTF("Transpose CSR to CSC Method Called: transposeCSRToCSC().\n");
     int nnz = h_values.size();
@@ -322,7 +322,7 @@ int transposeCSRToCSC(const thrust::host_vector<int>& h_values, const thrust::ho
     CHECK_CUDA(cudaEventCreate(&stop));
 
     // Copy input CSR data to device
-    thrust::device_vector<int> d_values = h_values;
+    thrust::device_vector<float> d_values = h_values;
     thrust::device_vector<int> d_col_indices = h_col_indices;
     thrust::device_vector<int> d_row_ptr = h_row_ptr;
     
