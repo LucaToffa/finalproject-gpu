@@ -193,3 +193,76 @@ int pretty_print_csr_matrix(const csr_matrix *csr, std::ostream &out) {
     }
     return 0;
 }
+
+
+csc_matrix* new_csc_matrix(int rows, int cols, int nnz){
+    csc_matrix *csc = new csc_matrix {
+        .rows = rows,
+        .cols = cols,
+        .nnz = nnz,
+        .col_offsets = new int[cols + 1],
+        .row_indices = new int[nnz],
+        .values = new float[nnz]
+    };
+    memset(csc->col_offsets, 0, (cols + 1) * sizeof(int));
+    memset(csc->row_indices, 0, nnz * sizeof(int));
+    memset(csc->values, 0, nnz * sizeof(float));
+    return csc;
+}
+csc_matrix* load_csc_matrix(const char *filename){
+    PRINTF("--------------------\n");
+    PRINTF("Loading CSC Matrix from file: %s\n", filename);
+    FILE *f = fopen(filename, "r");
+    if(f == NULL){
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return NULL;
+    }
+    int rows, cols, nnz;
+    char* line = new char[1024];
+    do{
+        line = fgets(line, 1024, f);
+    }while (line[0] < '0' || line[0] > '9');
+    fseek(f, -strlen(line), SEEK_CUR);
+    fscanf(f, "%d %d %d", &rows, &cols, &nnz);
+    PRINTF("Metadata: { Rows: %d\t, Cols: %d\t, NNZ: %d }\n", rows, cols, nnz);
+    csc_matrix *csc = new_csc_matrix(rows, cols, nnz);
+
+    for (int i = 0; i < nnz; i++) {
+        // every line is of the form: (int)row (int)col (signed int | float)value
+        int row, col;
+        float value;
+        fscanf(f, "%d %d %f", &row, &col, &value);
+        row--; col--; // 1-indexed to 0-indexed
+        if (row < 0 || row >= rows || col < 0 || col >= cols) {
+            std::cerr << "Error: Invalid row or column index at line " << i << std::endl;
+            std::cerr << "row: " << row << "col: " << col << "value: " << value << std::endl;
+            return NULL;
+        }
+        csc->values[i] = value;
+        csc->row_indices[i] = row;
+        csc->col_offsets[col + 1]++;
+    }
+
+    for (int i = 0; i < rows; i++) {
+        csc->col_offsets[i + 1] += csc->col_offsets[i];
+    }
+    PRINTF("CSC Matrix loaded succesfully.\n");
+    PRINTF("--------------------\n");
+    delete[] line;
+    return csc;    
+}
+
+int print_csc_matrix(const csc_matrix *csc){
+    std::cout << "Debug Print - CSC Matrix:" << std::endl;
+    std::cout << "Rows: " << csc->rows << " Cols: " << csc->cols << " NNZ: " << csc->nnz << std::endl;
+    std::cout << "Col offsets: ";
+    for(int i = 0; i < csc->cols + 1; i++){ std::cout << csc->col_offsets[i] << " "; }
+    std::cout << std::endl;
+    std::cout << "Row indices: ";
+    for(int i = 0; i < csc->nnz; i++){ std::cout << csc->row_indices[i] << " "; }
+    std::cout << std::endl;
+    std::cout << "Values: ";
+    for(int i = 0; i < csc->nnz; i++){ std::cout << csc->values[i] << " "; }
+    std::cout << std::endl;
+    return 0;   
+}

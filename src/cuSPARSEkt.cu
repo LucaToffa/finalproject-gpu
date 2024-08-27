@@ -1,4 +1,5 @@
 #include "../include/commons.h"
+#include "../include/debug.h"
 #include "../include/csr.h"
 #include "../include/cuSPARSEkt.cuh"
 #include <cassert>
@@ -43,6 +44,12 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
     CHECK_CUDA(cudaMemcpy(d_in_row_offsets, in->row_offsets, (in->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_in_cols, in->col_indices, in->nnz * sizeof(int), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_in_values, in->values, in->nnz * sizeof(float), cudaMemcpyHostToDevice));
+    
+    cudaEvent_t startK, stopK;
+    CHECK_CUDA(cudaEventCreate(&startK));
+    CHECK_CUDA(cudaEventCreate(&stopK));
+    CHECK_CUDA(cudaEventRecord(startK))
+
     // ? Find buffer size to perform the transpose
     CHECK_CUSPARSE(cusparseCsr2cscEx2_bufferSize(
         handle,
@@ -66,19 +73,33 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
         CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG1, dBuffer
     ));
     // ? Record time after performing the transpose operation
-    CHECK_CUDA(cudaEventRecord(stop));
+    CHECK_CUDA(cudaEventRecord(stopK));
     // ? Copy data from device to host for Output Matrix
     CHECK_CUDA(cudaMemcpy(out->row_offsets, d_out_row_offsets, (in->rows + 1) * sizeof(int), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(out->col_indices, d_out_cols, out->nnz * sizeof(int), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(out->values, d_out_values, out->nnz * sizeof(float), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaEventRecord(stop));
     CHECK_CUDA(cudaEventSynchronize(stop));
+
+    float millisecondsK = 0;
+    CHECK_CUDA(cudaEventElapsedTime(&millisecondsK, startK, stopK));
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
+
+    int N = 1000; /* *** should be the real matrix size */
+    float ogbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / milliseconds;
+    float kgbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / millisecondsK;
     printf("Time for executing cuSPARSECSRt operation: %f ms\n", milliseconds);
+    PRINTF("Operation Time: %11.2f ms\n", milliseconds);
+    PRINTF("Operation Throughput in GB/s: %7.2f\n", ogbs);
+    PRINTF("Kernel Time: %11.2f ms\n", millisecondsK);
+    PRINTF("Kernel Throughput in GB/s: %7.2f\n", kgbs);
 
     std::ofstream output;
     output.open ("logs/results.log", std::ios::out | std::ios_base::app);
-    output << "N_mat, " << "Cusparse, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    //output << "Cusparse, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    // algorithm, OpTime, Op-GB/s, KTime, K-GB/s
+    output << "CUsparse, " <<  milliseconds << ", "<< ogbs << ", " << millisecondsK << ", " << kgbs << "\n"; /* *** */
     output.close();
 
     // Check if transpose was successful

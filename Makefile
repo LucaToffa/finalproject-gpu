@@ -2,8 +2,8 @@ NVCC = nvcc
 CC = g++
 CXXFLAGS = -std=c++17 -lcusparse
 ## uncomment to run on remote machine
-CXXFLAGS += -ccbin /home/linuxbrew/.linuxbrew/bin/g++-12
-CC = $(NVCC)
+# CXXFLAGS += -ccbin /home/linuxbrew/.linuxbrew/bin/g++-12
+# CC = $(NVCC)
 
 BUILD := build
 SRC := src
@@ -16,17 +16,14 @@ CUSRC := $(wildcard $(SRC)/*.cu)
 OBJ := $(patsubst $(SRC)/%.cpp, $(BUILD)/%.o, $(CPPSRC))
 OBJ += $(patsubst $(SRC)/%.cu, $(BUILD)/%.o, $(CUSRC))
 
-T = 32 ## T >= B
-B = 8 ## works up to 16
-
 .PHONY: all clean run setup debug
 
 all: run
 debug: $(SRC)/* main.cu
-	$(NVCC) $(CXXFLAGS) -g -DDEBUG -DTILE_SIZE=$(T) -DBLOCK_ROWS=$(B) -I$(INCLUDE) $^ -o $(BUILD)/$@
-	@nvidia-optimus-offload-glx ./$(BUILD)/$@
+	$(NVCC) $(CXXFLAGS) -g -DDEBUG -I$(INCLUDE) $^ -o $(BUILD)/$@
+	@./$(BUILD)/$@
 main: $(OBJ) $(BUILD)/main.o
-	$(NVCC) $(CXXFLAGS) -DTILE_SIZE=$(T) -DBLOCK_ROWS=$(B) -I$(INCLUDE) $^ -o $@
+	$(NVCC) $(CXXFLAGS) -I$(INCLUDE) $^ -o $@
 
 $(BUILD)/main.o: main.cu
 	@$(NVCC) $(CXXFLAGS) -I$(INCLUDE) -c $< -o $@

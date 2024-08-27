@@ -8,12 +8,9 @@
 #include "include/benchmarks.cuh"
 #include <fstream>
 
-#define DEBUG
-
-const int matrix_number = 11;
+const int matrix_number = 10;
 const char* matrix_list[] = { //for some reason in the original order csr load broke ???
     "matrices/494_bus.mtx",
-    "matrices/bcsstm01.mtx",
     "matrices/circuit204.mtx",
     "matrices/collins_15NN.mtx",
     "matrices/lowThrust_1.mtx",
@@ -42,6 +39,25 @@ int main(int argc, char** argv) {
     }
 #endif
     complete_benchmark();
+    //cuSparse_transpose_example();
+    //our files are in column fisrt order...
+    // csr_matrix* csr = load_csr_matrix("matrices/tests/mockcoorow.mtx");
+    // csc_matrix* csc = load_csc_matrix("matrices/tests/mockcoo.mtx");
+    // coo_matrix* coo = load_coo_matrix("matrices/tests/mockcoorow.mtx");
+    // csr_matrix* csr_from_csc = csc_to_csr(csc->rows, csc->cols, csc->nnz, csc->values, csc->row_indices, csc->col_offsets);
+    // print_coo_matrix(coo);
+    // print_csr_matrix(csr);
+    // print_csc_matrix(csc);
+    // pretty_print_csr_matrix(csr, std::cout);
+    // float* coo_big = coo_to_mat(coo);
+    // printf("from coo to mat\n");
+    // printMatrix(coo_big, coo->cols);
+    // float* big_mat = csr_to_mat(csr);
+    // printf("from csr to mat\n");
+    // printMatrix(big_mat, csr->cols);
+    // printf("from csc to csr\n");
+    // pretty_print_csr_matrix(csr_from_csc, std::cout);
+    // delete big_mat;
     return 0;
 }
 
@@ -49,10 +65,15 @@ int cuSparse_transpose_example() {
     csr_matrix* csr = load_csr_matrix("matrices/circuit204.mtx");
     csr_matrix* csr_t = new_csr_matrix(csr->rows, csr->cols, csr->nnz, csr->row_offsets, csr->col_indices, csr->values);
     print_csr_matrix(csr);
-    pretty_print_csr_matrix(csr, std::cout);
-    cuSparseCSRt(csr, csr_t);
+    //pretty_print_csr_matrix(csr, std::cout);
+    //cuSparseCSRt(csr, csr_t);
+    csr_transposition(csr, csr_t);
     pretty_print_csr_matrix(csr_t, std::cout);
-    if (is_transpose(csr, csr_t)) {
+    float* mat = csr_to_mat(csr);
+    float* matT = csr_to_mat(csr_t);
+    int size = 0;
+    
+    if (testTranspose(mat, matT, size)) {
         printf("Transpose is correct\n");
     } else {
         printf("Transpose is incorrect\n");
@@ -97,14 +118,16 @@ int complete_benchmark() {
     PRINTF("main.cu) Now Entering Loop...\n");
     std::ofstream output;
     output.open("logs/results.log");
-    output << "#N_mat, algorithm, OpTime, Op-GB/s, KTime, K-GB/s#\n";
+    output << "#algorithm, OpTime, Op-GB/s, KTime, K-GB/s#\n";
     output.close();
-    for (int i = 0; i < matrix_number; i++) {
-        PRINTF("main.cu) Matrix: %s\n", matrix_list[i]);
+    for (int i = 0; i < 1; i++) {
+        // PRINTF("main.cu) Matrix: %s\n", matrix_list[i]);
         //load as coo
-        coo_matrix* coo = load_coo_matrix(matrix_list[i]);
+        // coo_matrix* coo = load_coo_matrix(matrix_list[i]);
         //load as csr
-        csr_matrix* csr = load_csr_matrix(matrix_list[i]);
+        // csr_matrix* csr = load_csr_matrix(matrix_list[i]);
+        csc_matrix* csc = load_csc_matrix("matrices/tests/mockcoo.mtx");
+        csr_matrix* csr = csc_to_csr(csc->rows, csc->cols, csc->nnz, csc->values, csc->row_indices, csc->col_offsets);
         std::ofstream csr_log_output;
         csr_log_output.open("logs/csr.log", std::ios::out | std::ios_base::app);
         csr_log_output << "Matrix: " << matrix_list[i] << "\n";
@@ -112,39 +135,42 @@ int complete_benchmark() {
         csr_log_output.close();
         csr_matrix* csr_t = new_csr_matrix(csr->cols, csr->rows, csr->nnz);
         //load as uncompressed
-        float* uncompressed = coo_to_mat_padded(coo);
-        assert(coo->rows == coo->cols);
-        dense_mat_size = next_power_of_2(std::max(coo->rows, coo->cols));
+        // float* uncompressed = coo_to_mat_padded(coo);
+        // assert(coo->rows == coo->cols);
+        // dense_mat_size = next_power_of_2(std::max(coo->rows, coo->cols));
         /*
         each kernel + any other necessary operations / checks
         save to output file: mat | algo | time | BW | error
         inside the called function
         */
-        PRINTF("main.cu) calling cuCOOt kernel\n");
-        if(coo_transposition(coo)) {
-            printf("error in coo transpose, matrix #%d\n", i);
-        }
+        output.open("logs/results.log", std::ios::out | std::ios_base::app);
+        output << i << "\n";
+        output.close();
+        // PRINTF("main.cu) calling cuCOOt kernel\n");
+        // if(coo_transposition(coo)) {
+        //     printf("error in coo transpose, matrix #%d\n", i); 
+        // }
         PRINTF("main.cu) calling cuCSRt kernel\n");
         if(csr_transposition(csr, csr_t)) {
             printf("error in csr transpose, matrix #%d\n", i);
         }
-        PRINTF("main.cu) calling block kernel\n");
-        if(block_trasposition(uncompressed, dense_mat_size)) {
-            printf("error in block transpose, matrix #%d\n", i);
-        }
-        PRINTF("main.cu) calling conflict kernel\n");
-        if(conflict_transposition(uncompressed, dense_mat_size)) {
-            printf("error in conflict transpose, matrix #%d\n", i);
-        }
-        PRINTF("main.cu) calling cuSparseCSRt kernel\n");
-        if(cuSparseCSRt(csr, csr_t)) {
-            printf("error in cuSparse transpose, matrix #%d\n", i);
-        }
-        printf("main.cu) matrix #%d done\n", i);
+        // PRINTF("main.cu) calling block kernel\n");
+        // if(block_trasposition(uncompressed, dense_mat_size)) {
+        //     printf("error in block transpose, matrix #%d\n", i);
+        // }
+        // PRINTF("main.cu) calling conflict kernel\n");
+        // if(conflict_transposition(uncompressed, dense_mat_size)) {
+        //     printf("error in conflict transpose, matrix #%d\n", i);
+        // }
+        // PRINTF("main.cu) calling cuSparseCSRt kernel\n");
+        // if(cuSparseCSRt(csr, csr_t)) {
+        //     printf("error in cuSparse transpose, matrix #%d\n", i);
+        // }
+        // printf("main.cu) matrix #%d done\n", i);
 
         //delete everything
-        delete[] coo->el;
-        delete coo;
+        // delete[] coo->el;
+        // delete coo;
         delete[] csr->row_offsets;
         delete[] csr->col_indices;
         delete[] csr->values;
@@ -153,7 +179,7 @@ int complete_benchmark() {
         delete[] csr_t->col_indices;
         delete[] csr_t->values;
         delete csr_t;
-        delete[] uncompressed;
+        // delete[] uncompressed;
     }
     return 0;
 }

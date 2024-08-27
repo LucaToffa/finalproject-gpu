@@ -23,6 +23,24 @@ struct csr_matrix {
 };
 
 /**
+    * @brief Struct to represent a Compressed Sparse Column matrix, more compatible with the given data
+    * @param {int} rows Number of rows in the matrix
+    * @param {int} cols Number of columns in the matrix
+    * @param {int} nnz Number of non-zero elements in the matrix
+    * @param {int[]} col_offsets Array of size col + 1 containing the offsets of the cols
+    * @param {int[]} row_indices Array of size nnz containing the row indices of the non-zero elements
+    * @param {float[]} values Array of size nnz containing the values of the non-zero elements
+ */
+struct csc_matrix {
+    int rows;
+    int cols;
+    int nnz;
+    int* col_offsets; // Lenght: csc->cols + 1
+    int* row_indices; // Lenght: csc->nnz
+    float* values;       // Lenght: csc->nnz
+};
+
+/**
     * @brief Builds a new CSR matrix from the given data
     * @param {int} rows Number of rows in the matrix
     * @param {int} cols Number of columns in the matrix
@@ -73,4 +91,7 @@ int print_csr_matrix(const csr_matrix *csr);
  */
 int pretty_print_csr_matrix(const csr_matrix *csr, std::ostream &out);
 
+csc_matrix* new_csc_matrix(int rows, int cols, int nnz);
+csc_matrix* load_csc_matrix(const char *filename);
+int print_csc_matrix(const csc_matrix *csc);
 #endif

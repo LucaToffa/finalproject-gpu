@@ -22,6 +22,11 @@ int coo_transposition(coo_matrix* coo) {
     coo_element* el = coo->el;
     coo_matrix* d_coo;
     coo_element* d_el;
+
+    cudaEvent_t start, stop;
+    CHECK_CUDA(cudaEventCreate(&start));
+    CHECK_CUDA(cudaEventCreate(&stop));
+    CHECK_CUDA(cudaEventRecord(start));
     CHECK_CUDA(cudaMallocManaged((void**)&d_coo, sizeof(coo_matrix)));
     CHECK_CUDA(cudaMallocManaged((void**)&d_el, coo->nnz * sizeof(coo_element)));
     CHECK_CUDA(cudaMemcpy(d_coo, coo, sizeof(coo_matrix), cudaMemcpyHostToDevice));
@@ -29,24 +34,27 @@ int coo_transposition(coo_matrix* coo) {
     PRINTF("Copied & Allocated Memory Succesfully\n");
     d_coo->el = d_el;
 
-    cudaEvent_t start, stop;
-    CHECK_CUDA(cudaEventCreate(&start));
-    CHECK_CUDA(cudaEventCreate(&stop));
+    cudaEvent_t startK, stopK;
+    CHECK_CUDA(cudaEventCreate(&startK));
+    CHECK_CUDA(cudaEventCreate(&stopK));
+
+    CHECK_CUDA(cudaEventRecord(startK));
     
     #ifdef DEBUG
         printf("Pre-Transpose Matrix:\n");
         print_coo_less(d_coo);
     #endif
-    CHECK_CUDA(cudaEventRecord(start));
     cuCOOt<<<coo->nnz,1>>>(d_coo->el, d_coo->nnz);
+    CHECK_CUDA(cudaEventRecord(stopK));
     CHECK_CUDA(cudaMemcpy(d_coo, d_coo, sizeof(coo_matrix), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaEventRecord(stop));
     CHECK_CUDA(cudaEventSynchronize(stop));
 
-    PRINTF("Transposition Completed Succesfully.\n");
-    float milliseconds = 0;
-    CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
-    printf("Time for executing cuCOOt operation: %f ms\n", milliseconds);
+    // PRINTF("Transposition Completed Succesfully.\n");
+    // float milliseconds = 0;
+    // CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
+    // printf("Time for executing cuCOOt operation: %f ms\n", milliseconds);
+    int ret = 0;
     #ifdef DEBUG
         printf("Post-Transpose Matrix:\n");
         print_coo_less(d_coo);
@@ -54,18 +62,34 @@ int coo_transposition(coo_matrix* coo) {
     if (is_transpose(coo, d_coo)) {
         PRINTF("Transpose is correct.\n");
     } else {
+        ret = -1;
         PRINTF("Transpose is incorrect.\n");
     }
+
+    float millisecondsK = 0;
+    CHECK_CUDA(cudaEventElapsedTime(&millisecondsK, startK, stopK));
+    float milliseconds = 0;
+    CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
+    int N = coo->cols; 
+    float ogbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / milliseconds;
+    float kgbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / millisecondsK;
+    PRINTF("Time for executing cuCOOt operation: %f ms\n", milliseconds);
+    PRINTF("Operation Throughput in GB/s: %7.2f\n", ogbs);
+    PRINTF("Kernel Time: %11.2f ms\n", millisecondsK);
+    PRINTF("Kernel Throughput in GB/s: %7.2f\n", kgbs);
+
     std::ofstream output;
     output.open ("logs/results.log", std::ios::out | std::ios_base::app);
-    output << "N_mat, " << "COO, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    //output << "COO, " << "OpTime, Op-GB/s, " << milliseconds << " K-GB/s\n";
+    // algorithm, OpTime, Op-GB/s, KTime, K-GB/s
+    output << "COO, " <<  milliseconds << ", "<< ogbs << ", " << millisecondsK << ", " << kgbs << "\n"; /* *** */
     output.close();
 
     CHECK_CUDA(cudaFree(d_coo));
     CHECK_CUDA(cudaFree(d_el));
     PRINTF("Freed Memory Succesfully.\n");
     PRINTF("--------------------\n");
-    return 0;
+    return ret;
 }
 
 int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
@@ -108,12 +132,12 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
     // pretty_print_matrix(h_t_values, h_t_row_indices, h_t_col_ptr, num_rows, num_cols); // ! error invert num_rows and num_cols
 
     
-    transposeCSRToCSC_cuda(csr, csr_t);
+    int ret = transposeCSRToCSC_cuda(csr, csr_t);
 
 
     PRINTF("Transposition Completed Succesfully.\n");
     PRINTF("--------------------\n");
-    return 0;
+    return ret;
 }
 
 int block_trasposition(float* mat, unsigned int N) {
@@ -181,7 +205,9 @@ int block_trasposition(float* mat, unsigned int N) {
     
     std::ofstream output;
     output.open("logs/results.log", std::ios::out | std::ios_base::app);
-    output << "N_mat, " << "block, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+
+    // algorithm, OpTime, Op-GB/s, KTime, K-GB/s
+    output << "block, " <<  milliseconds << ", "<< ogbs << ", " << millisecondsK << ", " << kgbs << "\n";
     output.close();
 
     CHECK_CUDA(cudaEventDestroy(startK));
@@ -194,6 +220,7 @@ int block_trasposition(float* mat, unsigned int N) {
     // printMatrix(mat_t, N);
 
     //test if the matrix is transposed
+    int ret = 0;
     if (testTranspose(mat, mat_t, N) != 0) {
         // save the matrix to a file
         std::ofstream output;
@@ -214,13 +241,15 @@ int block_trasposition(float* mat, unsigned int N) {
             output << "\n";
         }
         output.close();
+
+        ret = -1;
     }
     PRINTF("--------------------\n");
     //free gpu resources
     CHECK_CUDA(cudaFree(d_mat));
     CHECK_CUDA(cudaFree(d_mat_t));
     free(mat_t);
-    return 0;
+    return ret;
 }
 
 int conflict_transposition(float* mat, unsigned int N) {
@@ -285,11 +314,13 @@ int conflict_transposition(float* mat, unsigned int N) {
     PRINTF("Throughput in GB/s: %7.2f\n", ogbs);
     PRINTF("Kernel Time: %11.2f ms\n", millisecondsK);
     PRINTF("Throughput in GB/s: %7.2f\n", kgbs);
-    printf("%f, %f, %f, %f, ", milliseconds, ogbs, millisecondsK, kgbs);
+    //printf("%f, %f, %f, %f, ", milliseconds, ogbs, millisecondsK, kgbs);
     
     std::ofstream output;
     output.open ("logs/results.log", std::ios::out | std::ios_base::app);
-    output << "N_mat, " << "Conflict, " << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    //output << "Conflict, " << "OpTime, Op-GB/s, " << milliseconds << " K-GB/s\n";
+    // algorithm, OpTime, Op-GB/s, KTime, K-GB/s
+    output << "Conflict, " <<  milliseconds << ", "<< ogbs << ", " << millisecondsK << ", " << kgbs << "\n";
     output.close();
 
     CHECK_CUDA(cudaEventDestroy(startK));
@@ -302,13 +333,13 @@ int conflict_transposition(float* mat, unsigned int N) {
     //printMatrix(mat_t, N);
 
     //test if the matrix is transposed
-    testTranspose(mat, mat_t, N);
+    int ret =  testTranspose(mat, mat_t, N);
     PRINTF("--------------------\n");
     //free gpu resources
     CHECK_CUDA(cudaFree(d_mat));
     CHECK_CUDA(cudaFree(d_mat_t));
     free(mat_t);
-    return 0;
+    return ret;
 }
 
 int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
@@ -333,6 +364,10 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
 
     CHECK_CUDA(cudaEventRecord(start));
 
+    cudaEvent_t startK, stopK;
+    CHECK_CUDA(cudaEventCreate(&startK));
+    CHECK_CUDA(cudaEventCreate(&stopK));
+    CHECK_CUDA(cudaEventRecord(startK));
     countNNZPerColumn<<<((csr->nnz + 255) / 256), 256>>>(d_col_indices, d_col_counts, csr->nnz);
 
     // ? Here we compute the exclusive scan from the column counts in the csr_t->col_ptr
@@ -359,18 +394,33 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
 
     scatterToTransposed<<<(csr->rows + 255) / 256, 256>>>(d_values, d_col_indices, d_row_offsets, d_t_values, d_t_col_indices, d_t_row_offsets, csr->rows);
 
+    CHECK_CUDA(cudaEventRecord(stopK));
+    CHECK_CUDA(cudaEventSynchronize(stopK));
+
     CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, d_t_row_offsets, (csr->cols + 1) * sizeof(int), cudaMemcpyDeviceToHost));
 
     CHECK_CUDA(cudaEventRecord(stop));
     CHECK_CUDA(cudaEventSynchronize(stop));
+
+    float millisecondsK = 0;
+    CHECK_CUDA(cudaEventElapsedTime(&millisecondsK, startK, stopK));
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
+    int N = 1000; /* *** should be the real matrix size */
+    float ogbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / milliseconds;
+    float kgbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / millisecondsK;
     printf("Time for executing transpose operation: %f ms\n", milliseconds);
+    PRINTF("Operation Time: %11.2f ms\n", milliseconds);
+    PRINTF("Operation Throughput in GB/s: %7.2f\n", ogbs);
+    PRINTF("Kernel Time: %11.2f ms\n", millisecondsK);
+    PRINTF("Kernel Throughput in GB/s: %7.2f\n", kgbs);
     std::ofstream output;
     output.open ("logs/results.log", std::ios::out | std::ios_base::app);
-    output << "N_mat, " << "CSR" << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    //output << "CSR" << "OpTime, Op-GB/s, " << milliseconds << " K-GB/s\n";
+    // algorithm, OpTime, Op-GB/s, KTime, K-GB/s
+    output << "CSRtoCSCcuda, " <<  milliseconds << ", "<< ogbs << ", " << millisecondsK << ", " << kgbs << "\n"; /* *** */
     output.close();
     cudaCheckError();
 
@@ -396,6 +446,7 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
         errlogstream << "\n\nTranposed Matrix:\n";
         pretty_print_csr_matrix(csr_t, errlogstream);
         errlogstream.close();
+        return -1;
     }
 
     return 0;
@@ -454,7 +505,9 @@ int transposeCSRToCSC(const thrust::host_vector<float>& h_values, const thrust::
     printf("Time for executing transpose operation: %f ms\n", milliseconds);
     std::ofstream output;
     output.open ("logs/results.log", std::ios::out | std::ios_base::app);
-    output << "N_mat, " << "CSR" << "OpTime, Op-GB/s, " << milliseconds << "K-GB/s\n";
+    output << "CSR" << "OpTime, Op-GB/s, " << milliseconds << " K-GB/s\n";
+    // algorithm, OpTime, Op-GB/s, KTime, K-GB/s
+    // output << "CSRtoCSC, " <<  milliseconds << ", "<< ogbs << ", " << millisecondsK << ", " << kgbs << "\n"; /* *** */
     output.close();
     cudaCheckError();
     return 0;

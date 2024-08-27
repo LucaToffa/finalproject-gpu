@@ -112,4 +112,5 @@ float* coo_to_mat_padded(const coo_matrix *coo);
  */
 int next_power_of_2(int n);
 
+csr_matrix* csc_to_csr(int num_rows, int num_cols, int nnz, float* csc_values, int* csc_row_indices, int* csc_col_pointers);
 #endif
