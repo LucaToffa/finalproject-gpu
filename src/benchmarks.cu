@@ -354,6 +354,16 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaEventCreate(&start));
     CHECK_CUDA(cudaEventCreate(&stop));
 
+    csr->rows = 4;
+    csr->cols = 4;
+    csr->nnz = 7;
+    delete[] csr->row_offsets;
+    delete[] csr->col_indices;
+    delete[] csr->values;
+    csr->row_offsets = new int[5]{0, 3, 4, 6, 7};
+    csr->col_indices = new int[7]{0, 2, 3, 1, 2, 3, 3};
+    csr->values = new float[7]{10, 20, 30, 40, 50, 60, 70};
+
     // Copy input CSR data to device
     int *d_col_indices, *d_col_counts;
     CHECK_CUDA(cudaMalloc((void**)&d_col_indices, csr->nnz * sizeof(int)));
@@ -370,11 +380,44 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaEventRecord(startK));
     countNNZPerColumn<<<((csr->nnz + 255) / 256), 256>>>(d_col_indices, d_col_counts, csr->nnz);
 
+    //cudaMemcpy(csr_t->col_indices, d_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(csr_t->row_offsets, d_col_counts, csr->cols * sizeof(int), cudaMemcpyDeviceToHost);
+    printf("Row Offsets: ");
+    for (int i = 0; i < csr->cols; i++) {
+        printf("%d ", csr_t->row_offsets[i]);
+    }
+    printf("\n");
+    // printf("Col Indices: ");
+    // for (int i = 0; i < csr->nnz; i++) {
+    //     printf("%d ", csr_t->col_indices[i]);
+    // }
+
     // ? Here we compute the exclusive scan from the column counts in the csr_t->col_ptr
     // TODO: Check if this works
-    thrust::device_vector<int> d_col_ptr(csr->cols + 1);
-    thrust::exclusive_scan(d_col_counts, d_col_counts + csr->cols, d_col_ptr.begin());
+    //thrust::device_vector<int> d_col_ptr(csr->cols + 1);
+    //thrust::exclusive_scan(d_col_counts, d_col_counts + csr->cols, d_col_ptr.begin());
+    int *col_ptr = new int[csr->cols +1];
+    int *d_col_ptr;
+    CHECK_CUDA(cudaMalloc((void**)&d_col_ptr, (csr->cols) * sizeof(int)));
+    
+    int shared_mem_size = 2*(csr->cols) * sizeof(int); //declare the size of the shared memory
+    prefix_scan<<<1, (csr->cols+1), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols); // maybe csr->cols + 1 !TODO
     cudaCheckError();
+    CHECK_CUDA(cudaMemcpy(col_ptr, d_col_ptr, (csr->cols) * sizeof(int), cudaMemcpyDeviceToHost));
+    //correct last element missing
+    // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda : Figure 39-4 
+    for(int i = 0; i < csr->cols; i++){
+        col_ptr[csr->cols] += col_ptr[i];
+    }
+    
+    //col_ptr[0] = 0;
+    printf("Col Ptr: ");
+    for (int i = 0; i < csr->cols +1; i++) {
+        printf("%d ", col_ptr[i]);
+    }
+    printf("\n");
+   
+
 
     float *d_values, *d_t_values;
     int *d_t_col_indices;
@@ -385,7 +428,6 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices, csr->nnz * sizeof(int)));
     CHECK_CUDA(cudaMalloc((void**)&d_row_offsets, (csr->rows + 1) * sizeof(int)));
     CHECK_CUDA(cudaMalloc((void**)&d_t_row_offsets, (csr->cols + 1) * sizeof(int)));
-
     CHECK_CUDA(cudaMemcpy(d_values, csr->values, csr->nnz * sizeof(float), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_row_offsets, csr->row_offsets, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemset(d_t_row_offsets, 0, (csr->cols + 1) * sizeof(int)));

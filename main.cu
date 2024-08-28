@@ -128,12 +128,17 @@ int complete_benchmark() {
         // csr_matrix* csr = load_csr_matrix(matrix_list[i]);
         csc_matrix* csc = load_csc_matrix("matrices/tests/mockcoo.mtx");
         csr_matrix* csr = csc_to_csr(csc->rows, csc->cols, csc->nnz, csc->values, csc->row_indices, csc->col_offsets);
+        // delete[] csc->values;
+        // delete[] csc->row_indices;
+        // delete[] csc->col_offsets;
+        // delete csc;
         std::ofstream csr_log_output;
         csr_log_output.open("logs/csr.log", std::ios::out | std::ios_base::app);
         csr_log_output << "Matrix: " << matrix_list[i] << "\n";
         pretty_print_csr_matrix(csr, csr_log_output);
         csr_log_output.close();
         csr_matrix* csr_t = new_csr_matrix(csr->cols, csr->rows, csr->nnz);
+        pretty_print_csr_matrix(csr, std::cout);
         //load as uncompressed
         // float* uncompressed = coo_to_mat_padded(coo);
         // assert(coo->rows == coo->cols);

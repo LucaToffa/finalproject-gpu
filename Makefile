@@ -37,7 +37,7 @@ valgrind: main
 run: main
 	./main $(N)
 setup:
-	mkdir -p src build include \
+	mkdir -p src build include logs\
 	& touch README.md main.cpp
 clean:
 	rm -rf build/* \
