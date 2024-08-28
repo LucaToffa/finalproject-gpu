@@ -400,25 +400,31 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     int *d_col_ptr;
     CHECK_CUDA(cudaMalloc((void**)&d_col_ptr, (csr->cols) * sizeof(int)));
     
-    int shared_mem_size = 2*(csr->cols) * sizeof(int); //declare the size of the shared memory
-    prefix_scan<<<1, (csr->cols+1), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols); // maybe csr->cols + 1 !TODO
+    int shared_mem_size = (csr->cols) * sizeof(int); //declare the size of the shared memory
+    prefix_scan<<<1, (csr->cols), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols); // maybe csr->cols + 1 !TODO
     cudaCheckError();
     CHECK_CUDA(cudaMemcpy(col_ptr, d_col_ptr, (csr->cols) * sizeof(int), cudaMemcpyDeviceToHost));
     //correct last element missing
     // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda : Figure 39-4 
     for(int i = 0; i < csr->cols; i++){
         col_ptr[csr->cols] += col_ptr[i];
-    }
-    
-    //col_ptr[0] = 0;
+    } // (d_t_col_indices) /* *** */
     printf("Col Ptr: ");
     for (int i = 0; i < csr->cols +1; i++) {
         printf("%d ", col_ptr[i]);
     }
     printf("\n");
    
+    //get the data in this format : (val, col, row)
 
+    //order by col 
+    //1 thread per col, .append if col == thdx
+    //join the threads in order
+    //ordered values = loop list[i][0] (d_t_values)  /* *** */
+    //row_ptr = loop list[i][2] (d_t_row_offsets)  /* *** */
 
+    //return csr_t with /* *** */ values
+    
     float *d_values, *d_t_values;
     int *d_t_col_indices;
     int *d_row_offsets, *d_t_row_offsets;
