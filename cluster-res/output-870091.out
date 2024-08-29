@@ -1,0 +1,61 @@
+make: 'main' is up to date.
+cuSparseCSRt
+Buffer size: 10487
+Time for executing cuSPARSECSRt operation: 15.295296 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #0 done
+cuSparseCSRt
+Buffer size: 98775
+Time for executing cuSPARSECSRt operation: 0.284256 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #1 done
+cuSparseCSRt
+Buffer size: 137647
+Time for executing cuSPARSECSRt operation: 0.171776 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #2 done
+cuSparseCSRt
+Buffer size: 27537
+Time for executing cuSPARSECSRt operation: 0.124960 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #3 done
+cuSparseCSRt
+Buffer size: 27073
+Time for executing cuSPARSECSRt operation: 0.124576 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #4 done
+cuSparseCSRt
+Buffer size: 131255
+Time for executing cuSPARSECSRt operation: 0.166208 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #5 done
+cuSparseCSRt
+Buffer size: 467375
+Time for executing cuSPARSECSRt operation: 0.196128 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #6 done
+cuSparseCSRt
+Buffer size: 28985
+Time for executing cuSPARSECSRt operation: 0.123552 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #7 done
+cuSparseCSRt
+Buffer size: 92215
+Time for executing cuSPARSECSRt operation: 0.167584 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #8 done
+cuSparseCSRt
+Buffer size: 29321
+Time for executing cuSPARSECSRt operation: 0.122912 ms
+Now checking if transpose was successful
+Transpose is correct
+main.cu) matrix #9 done

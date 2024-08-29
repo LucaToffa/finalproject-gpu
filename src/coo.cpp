@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <cstring>
+#include "../include/commons.h"
 
 coo_matrix* load_coo_matrix(const char *filename) {
     PRINTF("--------------------\n");
@@ -19,6 +20,8 @@ coo_matrix* load_coo_matrix(const char *filename) {
     } while (line[0] < '0' || line[0] > '9');
     fseek(f, -strlen(line), SEEK_CUR);
     fscanf(f, "%d %d %d", &coo->rows, &coo->cols, &coo->nnz);
+    coo->rows = next_power_of_2(std::max(coo->rows, coo->cols));
+    coo->cols = next_power_of_2(std::max(coo->rows, coo->cols));
     PRINTF("Metadata: { Rows: %d\t, Cols: %d\t, NNZ: %d }\n", coo->rows, coo->cols, coo->nnz);
     coo->el = new coo_element[coo->nnz];
     int row, col;

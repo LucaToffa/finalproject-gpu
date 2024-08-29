@@ -29,3 +29,12 @@ As usual, the metric to consider is the effective bandwidth
 https://sparse.tamu.edu/?per_page=All (The dataset to use)
 
 https://docs.nvidia.com/cuda/cusparse/ (cuSPARSE documentation)
+
+
+### running on cluster
+```bash
+module load cuda/12.1
+make clean
+make all
+sbatch sbatch.sh
+```

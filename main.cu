@@ -11,6 +11,7 @@
 const int matrix_number = 10;
 const char* matrix_list[] = { //for some reason in the original order csr load broke ???
     "matrices/494_bus.mtx",
+    //"matrices/bcsstm01.mtx",
     "matrices/circuit204.mtx",
     "matrices/collins_15NN.mtx",
     "matrices/lowThrust_1.mtx",
@@ -126,7 +127,7 @@ int complete_benchmark() {
         // coo_matrix* coo = load_coo_matrix(matrix_list[i]);
         //load as csr
         // csr_matrix* csr = load_csr_matrix(matrix_list[i]);
-        csc_matrix* csc = load_csc_matrix("matrices/tests/mockcoo.mtx");
+        csc_matrix* csc = load_csc_matrix(matrix_list[i]);
         csr_matrix* csr = csc_to_csr(csc->rows, csc->cols, csc->nnz, csc->values, csc->row_indices, csc->col_offsets);
         // delete[] csc->values;
         // delete[] csc->row_indices;
@@ -135,12 +136,12 @@ int complete_benchmark() {
         std::ofstream csr_log_output;
         csr_log_output.open("logs/csr.log", std::ios::out | std::ios_base::app);
         csr_log_output << "Matrix: " << matrix_list[i] << "\n";
-        pretty_print_csr_matrix(csr, csr_log_output);
+        // pretty_print_csr_matrix(csr, csr_log_output);
         csr_log_output.close();
         csr_matrix* csr_t = new_csr_matrix(csr->cols, csr->rows, csr->nnz);
-        pretty_print_csr_matrix(csr, std::cout);
+        // pretty_print_csr_matrix(csr, std::cout);
         //load as uncompressed
-        // float* uncompressed = coo_to_mat_padded(coo);
+        //float* uncompressed = coo_to_mat_padded(coo);
         // assert(coo->rows == coo->cols);
         // dense_mat_size = next_power_of_2(std::max(coo->rows, coo->cols));
         /*

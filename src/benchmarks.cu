@@ -354,13 +354,19 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaEventCreate(&start));
     CHECK_CUDA(cudaEventCreate(&stop));
 
-    csr->rows = 4;
-    csr->cols = 4;
+    csr->rows = 8;
+    csr->cols = 8;
     csr->nnz = 7;
     delete[] csr->row_offsets;
     delete[] csr->col_indices;
     delete[] csr->values;
-    csr->row_offsets = new int[5]{0, 3, 4, 6, 7};
+    csr->row_offsets = new int[csr->rows + 1]{0, 3, 4, 6, 7, 7, 7, 7, 7};
+    // memset(csr->row_offsets, 7, 8 * sizeof(int)); 
+    // csr->row_offsets[0] = 0;
+    // csr->row_offsets[1] = 3;
+    // csr->row_offsets[2] = 4;
+    // csr->row_offsets[3] = 6;
+    // csr->row_offsets[4] = 7;
     csr->col_indices = new int[7]{0, 2, 3, 1, 2, 3, 3};
     csr->values = new float[7]{10, 20, 30, 40, 50, 60, 70};
 
@@ -401,14 +407,21 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaMalloc((void**)&d_col_ptr, (csr->cols) * sizeof(int)));
     
     int shared_mem_size = (csr->cols) * sizeof(int); //declare the size of the shared memory
-    prefix_scan<<<1, (csr->cols), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols); // maybe csr->cols + 1 !TODO
+    int *last = new int[1];
+    int *d_last;
+    CHECK_CUDA(cudaMalloc((void**)&d_last, sizeof(int)));
+    prefix_scan<<<1, (csr->cols), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last); // maybe csr->cols + 1 !TODO
+    // prefix_scan<<<(csr->cols +15)/16, 16, shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last); // maybe csr->cols + 1 !TODO
     cudaCheckError();
     CHECK_CUDA(cudaMemcpy(col_ptr, d_col_ptr, (csr->cols) * sizeof(int), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(last, d_last, sizeof(int), cudaMemcpyDeviceToHost));
+    //printf("Last: %d\n", last[0]);
     //correct last element missing
     // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda : Figure 39-4 
-    for(int i = 0; i < csr->cols; i++){
-        col_ptr[csr->cols] += col_ptr[i];
-    } // (d_t_col_indices) /* *** */
+    // for(int i = 0; i < csr->cols; i++){
+    //     col_ptr[csr->cols] += col_ptr[i];
+    // } // (d_t_col_indices) /* *** */
+    col_ptr[csr->cols] = last[0];
     printf("Col Ptr: ");
     for (int i = 0; i < csr->cols +1; i++) {
         printf("%d ", col_ptr[i]);
@@ -421,11 +434,12 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     //1 thread per col, .append if col == thdx
     //join the threads in order
     //ordered values = loop list[i][0] (d_t_values)  /* *** */
+    // -> call order_by_column, result in d_t_values
     //row_ptr = loop list[i][2] (d_t_row_offsets)  /* *** */
-
+    // -> call order_by_column, result in d_t_row_offsets
     //return csr_t with /* *** */ values
     
-    float *d_values, *d_t_values;
+    float *d_values, *d_t_values; //ordered values oc trasposed matrix
     int *d_t_col_indices;
     int *d_row_offsets, *d_t_row_offsets;
 
@@ -436,18 +450,52 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaMalloc((void**)&d_t_row_offsets, (csr->cols + 1) * sizeof(int)));
     CHECK_CUDA(cudaMemcpy(d_values, csr->values, csr->nnz * sizeof(float), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_row_offsets, csr->row_offsets, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemset(d_t_row_offsets, 0, (csr->cols + 1) * sizeof(int)));
+    //CHECK_CUDA(cudaMemset(d_t_row_offsets, 0, (csr->cols + 1) * sizeof(int)));
     CHECK_CUDA(cudaMemset(d_t_col_indices, 0, csr->nnz * sizeof(int)));
     CHECK_CUDA(cudaMemset(d_t_values, 0, csr->nnz * sizeof(float)));
 
-    scatterToTransposed<<<(csr->rows + 255) / 256, 256>>>(d_values, d_col_indices, d_row_offsets, d_t_values, d_t_col_indices, d_t_row_offsets, csr->rows);
+    //compute row_offsets in cpu
+    int count = 0;
+    for(int i = 0; i < csr->cols; i++){
+        int els = csr->row_offsets[i+1] - csr->row_offsets[i];
+        //memset els time for speed
+        for(int j = 0; j < els; j++){
+            csr_t->col_indices[count] = i;
+            count++;
+        }
+    }
+    // printf("Col Indices Transposed: ");
+    // for(int i = 0; i < csr->nnz; i++){
+    //     printf("%d ", csr_t->col_indices[i]);
+    // }
+    // printf("\n");
+    CHECK_CUDA(cudaMemcpy(d_t_col_indices, csr_t->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
+    int *t_col_indices_ordered = new int[csr->nnz];
+    int *d_t_col_indices_ordered;
+    CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices_ordered, csr->nnz * sizeof(int)));
+
+    //scatterToTransposed<<<(csr->rows + 255) / 256, 256>>>(d_values, d_col_indices, d_row_offsets, d_t_values, d_t_col_indices, d_t_row_offsets, csr->rows);
+    order_by_column<<<(csr->cols + 15) /16, 16>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
+    cudaCheckError();
+    cudaDeviceSynchronize();
+    CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices_ordered, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
+    printf("Ordered Col Indices Transposed: ");
+    for(int i = 0; i < csr->nnz; i++){
+        printf("%d ", csr_t->col_indices[i]);
+    }
+    printf("\n");
 
     CHECK_CUDA(cudaEventRecord(stopK));
     CHECK_CUDA(cudaEventSynchronize(stopK));
 
     CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
-    CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
-    CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, d_t_row_offsets, (csr->cols + 1) * sizeof(int), cudaMemcpyDeviceToHost));
+    printf("Ordered Values Transposed: ");
+    for(int i = 0; i < csr->nnz; i++){
+        printf("%f ", csr_t->values[i]);
+    }
+    printf("\n");
+    // CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
+    //CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, t_col_indices_ordered, (csr->cols + 1) * sizeof(int), cudaMemcpyDeviceToHost));
 
     CHECK_CUDA(cudaEventRecord(stop));
     CHECK_CUDA(cudaEventSynchronize(stop));

@@ -15,5 +15,9 @@ __global__ void countNNZPerColumn(const int* col_indices, int* col_counts, int n
 // Kernel to scatter values and row indices to transposed matrix
 __global__ void scatterToTransposed(const float* values, const int* col_indices, const int* row_ptr,
                                     float* t_values, int* t_row_indices, int* t_col_ptr, int num_rows);
-__global__ void prefix_scan(int *g_odata, int *g_idata, int n);
+__global__ void prefix_scan(int *g_odata, int *g_idata, int n, int *last);
+__global__ void order_by_column(const float* values, const int* col_indices, //col_offset
+                                float* d_t_values, int* t_col_indices, int *d_col_counts,
+                                int num_cols, int nnz,
+                                int *d_t_col_indices, int *d_t_col_indices_ordered);
 #endif

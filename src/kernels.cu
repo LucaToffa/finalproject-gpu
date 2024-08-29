@@ -3,7 +3,7 @@
 #include "../include/kernels.cuh"
 #include "../include/commons.h"
 #include <cuda_runtime.h>
-
+#include <cassert>
 
 /**
  * @brief Kernel to Transpose a COO Matrix out of place
@@ -42,6 +42,8 @@ __global__ void csr_transpose(const csr_matrix *in, csr_matrix *out) {
 }
 // Kernel to count the number of non-zero entries per column
 __global__ void countNNZPerColumn(const int* col_indices, int* col_counts, int nnz) {
+    // col_indices : [ 0 2 3 2 3 3 ]
+    // col_counts : [ 1 0 2 3 ]
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < nnz) {
         atomicAdd(&col_counts[col_indices[tid]], 1);
@@ -49,6 +51,7 @@ __global__ void countNNZPerColumn(const int* col_indices, int* col_counts, int n
 }
 
 // Kernel to scatter values and row indices to transposed matrix
+
 __global__ void scatterToTransposed(const float* values, const int* col_indices, const int* row_ptr,
                                     float* t_values, int* t_row_indices, int* t_col_ptr, int num_rows) {
     int row = blockIdx.x * blockDim.x + threadIdx.x;
@@ -59,6 +62,32 @@ __global__ void scatterToTransposed(const float* values, const int* col_indices,
             t_values[dest] = values[j];
             t_row_indices[dest] = row;
         }
+    }
+}
+
+//1 thread per col, .append if col == thdx
+//join the threads in order
+__global__ void order_by_column(const float* values, const int* col_indices, //col_offset
+                                float* d_t_values, int* t_col_indices, int *d_col_counts,
+                                int num_cols, int nnz,
+                                int *d_t_col_indices, int *d_t_col_indices_ordered){
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    //how many values are in this column?
+    int start_offset = t_col_indices[col]; //col_ptr 0 1 2 4 7 
+    int num_values = d_col_counts[col]; //1 1 2 3
+    //where to start from? Need all other displacements
+    int pos = 0;
+    if(col < num_cols){
+        for(int i = 0; i < nnz; i++){
+            if(col == col_indices[i]){
+                //append to the end of the array val
+                d_t_values[start_offset + pos] = values[i]; 
+                d_t_col_indices_ordered[start_offset + pos] = d_t_col_indices[i];
+                pos++;   
+            }
+        }
+        assert(num_values == pos);
+
     }
 }
 
@@ -129,10 +158,10 @@ __global__ void basic_transpose(float *input, float *output, int N){
     }
 }
 
-__global__ void prefix_scan(int *g_odata, int *g_idata, int n)
+__global__ void prefix_scan(int *g_odata, int *g_idata, int n, int *last)
 {   
     extern __shared__ int temp[]; // allocated on invocation
-    int thid = threadIdx.x;
+    int thid = threadIdx.x + blockIdx.x * blockDim.x;
     //printf("prefix_scan) n: %d, thr: %d\n", n, thid);
     int offset = 1;
     temp[2 * thid] = g_idata[2 * thid]; // load input into shared memory
@@ -153,6 +182,7 @@ __global__ void prefix_scan(int *g_odata, int *g_idata, int n)
     if (thid == 0)
     {
         //printf("prefix_scan) d: 0 in thr: %d\n", thid);
+        last[0] = temp[n - 1]; // write the last element of the scan to the last element of the block
         temp[n - 1] = 0;
     }                              // clear the last element
     for (int d = 1; d < n; d *= 2) // traverse down tree & build scan

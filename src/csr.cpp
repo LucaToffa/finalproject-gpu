@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <cstring>
+#include "../include/commons.h"
 
 
 csr_matrix* new_csr_matrix(int rows, int cols, int nnz, int *row_offsets, int *col_indices, float *values) {
@@ -57,6 +58,8 @@ csr_matrix* load_csr_matrix(const char *filename) {
     fseek(f, -strlen(line), SEEK_CUR);
     fscanf(f, "%d %d %d", &rows, &cols, &nnz);
     PRINTF("Metadata: { Rows: %d\t, Cols: %d\t, NNZ: %d }\n", rows, cols, nnz);
+    rows = next_power_of_2(std::max(rows, cols));
+    cols = next_power_of_2(std::max(rows, cols));
     csr_matrix *csr = new_csr_matrix(rows, cols, nnz);
 
     for (int i = 0; i < nnz; i++) {
@@ -225,6 +228,8 @@ csc_matrix* load_csc_matrix(const char *filename){
     fseek(f, -strlen(line), SEEK_CUR);
     fscanf(f, "%d %d %d", &rows, &cols, &nnz);
     PRINTF("Metadata: { Rows: %d\t, Cols: %d\t, NNZ: %d }\n", rows, cols, nnz);
+    rows = next_power_of_2(std::max(rows, cols));
+    cols = next_power_of_2(std::max(rows, cols));
     csc_matrix *csc = new_csc_matrix(rows, cols, nnz);
 
     for (int i = 0; i < nnz; i++) {
