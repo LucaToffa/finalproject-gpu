@@ -71,11 +71,10 @@ __global__ void order_by_column(const float* values, const int* col_indices, //c
                                 float* d_t_values, int* t_col_indices, int *d_col_counts,
                                 int num_cols, int nnz,
                                 int *d_t_col_indices, int *d_t_col_indices_ordered){
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int col = threadIdx.x + blockIdx.x * blockDim.x; //current working column
     //how many values are in this column?
     int start_offset = t_col_indices[col]; //col_ptr 0 1 2 4 7 
     int num_values = d_col_counts[col]; //1 1 2 3
-    //where to start from? Need all other displacements
     int pos = 0;
     if(col < num_cols){
         for(int i = 0; i < nnz; i++){

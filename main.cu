@@ -39,6 +39,13 @@ int main(int argc, char** argv) {
         printf("\n");
     }
 #endif
+    //clear all error logs
+    std::ofstream output;
+    output.open("logs/transpose_err.log", std::ios::out | std::ios_base::trunc);
+    output.close();
+    std::ofstream csr_log_output;
+    csr_log_output.open("logs/csr.log", std::ios::out | std::ios_base::trunc);
+    csr_log_output.close();
     complete_benchmark();
     //cuSparse_transpose_example();
     //our files are in column fisrt order...
@@ -116,20 +123,21 @@ int cuda_transpose_example() {
 
 int complete_benchmark() {
     unsigned int dense_mat_size;
-    PRINTF("main.cu) Now Entering Loop...\n");
+    // PRINTF("main.cu) Now Entering Loop...\n");
     std::ofstream output;
     output.open("logs/results.log");
     output << "#algorithm, OpTime, Op-GB/s, KTime, K-GB/s#\n";
     output.close();
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < matrix_number; i++) {
         // PRINTF("main.cu) Matrix: %s\n", matrix_list[i]);
         //load as coo
         coo_matrix* coo = load_coo_matrix(matrix_list[i]);
+        // coo_matrix* coo = load_coo_matrix("matrices/tests/mockcoo.mtx");
         //load as csr
         // csr_matrix* csr = load_csr_matrix(matrix_list[i]);
         csc_matrix* csc = load_csc_matrix(matrix_list[i]);
+        // csc_matrix* csc = load_csc_matrix("matrices/tests/mockbig.mtx");
         // csc_matrix* csc = load_csc_matrix("matrices/tests/mockcoo.mtx");
-        // csc_matrix* csc = load_csc_matrix("matrices/tests/mockdiag.mtx");
         csr_matrix* csr = csc_to_csr(csc->rows, csc->cols, csc->nnz, csc->values, csc->row_indices, csc->col_offsets);
         delete[] csc->values;
         delete[] csc->row_indices;
@@ -146,35 +154,36 @@ int complete_benchmark() {
         float* uncompressed = coo_to_mat_padded(coo);
         assert(coo->rows == coo->cols);
         dense_mat_size = next_power_of_2(std::max(coo->rows, coo->cols));
+        dense_mat_size = coo->rows;
         /*
         each kernel + any other necessary operations / checks
         save to output file: mat | algo | time | BW | error
         inside the called function
         */
         output.open("logs/results.log", std::ios::out | std::ios_base::app);
-        output << i << "\n";
+        //output << i << "\n";
         output.close();
-        PRINTF("main.cu) calling cuCOOt kernel\n");
-        if(coo_transposition(coo)) {
-            printf("error in coo transpose, matrix #%d\n", i); 
-        }
+        // PRINTF("main.cu) calling cuCOOt kernel\n");
+        // if(coo_transposition(coo)) {
+        //     printf("error in coo transpose, matrix #%d\n", i); 
+        // }
         PRINTF("main.cu) calling cuCSRt kernel\n");
         if(csr_transposition(csr, csr_t)) {
             printf("error in csr transpose, matrix #%d\n", i);
         }
-        PRINTF("main.cu) calling block kernel\n");
-        if(block_trasposition(uncompressed, dense_mat_size)) {
-            printf("error in block transpose, matrix #%d\n", i);
-        }
-        PRINTF("main.cu) calling conflict kernel\n");
-        if(conflict_transposition(uncompressed, dense_mat_size)) {
-            printf("error in conflict transpose, matrix #%d\n", i);
-        }
-        PRINTF("main.cu) calling cuSparseCSRt kernel\n");
-        if(cuSparseCSRt(csr, csr_t)) {
-            printf("error in cuSparse transpose, matrix #%d\n", i);
-        }
-        printf("main.cu) matrix #%d done\n", i);
+        // PRINTF("main.cu) calling block kernel\n");
+        // if(block_trasposition(uncompressed, dense_mat_size)) {
+        //     printf("error in block transpose, matrix #%d\n", i);
+        // }
+        // PRINTF("main.cu) calling conflict kernel\n");
+        // if(conflict_transposition(uncompressed, dense_mat_size)) {
+        //     printf("error in conflict transpose, matrix #%d\n", i);
+        // }
+        // PRINTF("main.cu) calling cuSparseCSRt kernel\n");
+        // if(cuSparseCSRt(csr, csr_t)) {
+        //     printf("error in cuSparse transpose, matrix #%d\n", i);
+        // }
+        // printf("main.cu) matrix #%d done\n", i);
 
         //delete everything
         delete[] coo->el;

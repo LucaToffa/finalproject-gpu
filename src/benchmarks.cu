@@ -135,8 +135,11 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
     
     int ret = transposeCSRToCSC_cuda(csr, csr_t);
 
-
-    PRINTF("Transposition Completed Succesfully.\n");
+    if (ret == 0) {
+        PRINTF("Transposition Completed Succesfully.\n");
+    } else {
+        PRINTF("Transposition Completed Unsuccesfully.\n");
+    }
     PRINTF("--------------------\n");
     return ret;
 }
@@ -374,127 +377,140 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaMemcpy(d_col_indices, csr->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemset(d_col_counts, 0, csr->cols * sizeof(int)));
 
+    //put at the beginning all mallocs
+
+    int shared_mem_size = 2*(csr->cols) * sizeof(int); //declare the size of the shared memory 
+    int *last = new int[1];
+    int *d_last;
+    CHECK_CUDA(cudaMalloc((void**)&d_last, sizeof(int)));
+
+
+    float *d_values, *d_t_values; //ordered values oc trasposed matrix
+    int *d_t_col_indices;
+    int *d_row_offsets, *d_t_row_offsets;
+
+
+    CHECK_CUDA(cudaMalloc((void**)&d_values, csr->nnz * sizeof(float)));
+    CHECK_CUDA(cudaMalloc((void**)&d_t_values, csr->nnz * sizeof(float)));
+    CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices, csr->nnz * sizeof(int)));
+
+
+    CHECK_CUDA(cudaMalloc((void**)&d_row_offsets, (csr->rows + 1) * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void**)&d_t_row_offsets, (csr->cols + 1) * sizeof(int)));
+
+    int *col_ptr = new int[csr->cols +1]; // why??? works
+    int *d_col_ptr;
+    CHECK_CUDA(cudaMalloc((void**)&d_col_ptr, (csr->cols) * sizeof(int)));
+
+    CHECK_CUDA(cudaMemcpy(d_values, csr->values, csr->nnz * sizeof(float), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemset(d_t_col_indices, 0, csr->nnz * sizeof(int)));
+    //CHECK_CUDA(cudaMemset(d_t_values, 0, csr->nnz * sizeof(float)));
+
+    int *t_col_indices_ordered = new int[csr->nnz];
+    int *d_t_col_indices_ordered;
+    CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices_ordered, csr->nnz * sizeof(int)));
+    //CHECK_CUDA(cudaMemset(d_t_col_indices_ordered, 0, csr->nnz * sizeof(int)));
 
     cudaEvent_t startK, stopK;
     CHECK_CUDA(cudaEventCreate(&startK));
     CHECK_CUDA(cudaEventCreate(&stopK));
     CHECK_CUDA(cudaEventRecord(startK));
-    countNNZPerColumn<<<((csr->nnz + 255) / 256), 256>>>(d_col_indices, d_col_counts, csr->nnz);
+    //use origin col indices 
+    //for(int i = 0; i < TRANSPOSITIONS; i++)
+    {
+        countNNZPerColumn<<<((csr->nnz + 255) / 256), 256>>>(d_col_indices, d_col_counts, csr->nnz);
 
-    cudaMemcpy(csr_t->col_indices, d_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(csr_t->row_offsets, d_col_counts, csr->cols * sizeof(int), cudaMemcpyDeviceToHost);
-    printf("Row Offsets: ");
-    for (int i = 0; i < csr->cols; i++) {
-        printf("%d ", csr_t->row_offsets[i]);
-    }
-    printf("\n");
-    printf("Col Indices: ");
-    for (int i = 0; i < csr->nnz; i++) {
-        printf("%d ", csr_t->col_indices[i]);
-    }
-    printf("\n");
-
-    // ? Here we compute the exclusive scan from the column counts in the csr_t->col_ptr
-    // TODO: Check if this works
-    //thrust::device_vector<int> d_col_ptr(csr->cols + 1);
-    //thrust::exclusive_scan(d_col_counts, d_col_counts + csr->cols, d_col_ptr.begin());
-    int *col_ptr = new int[csr->cols +1];
-    int *d_col_ptr;
-    CHECK_CUDA(cudaMalloc((void**)&d_col_ptr, (csr->cols) * sizeof(int)));
+        // cudaMemcpy(csr_t->col_indices, d_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost);
+        // cudaMemcpy(csr_t->row_offsets, d_col_counts, csr->cols * sizeof(int), cudaMemcpyDeviceToHost);
+        // printf("Row Offsets: ");
+        // for (int i = 0; i < csr->cols; i++) {
+        //     printf("%d ", csr_t->row_offsets[i]);
+        // }
+        // printf("\n");
+        // printf("Col Indices: ");
+        // for (int i = 0; i < csr->nnz; i++) {
+        //     printf("%d ", csr_t->col_indices[i]);
+        // }
+        // printf("\n");
+        // ? Here we compute the exclusive scan from the column counts in the csr_t->col_ptr
+        // TODO: Check if this works
+        //thrust::device_vector<int> d_col_ptr(csr->cols + 1);
+        //thrust::exclusive_scan(d_col_counts, d_col_counts + csr->cols, d_col_ptr.begin());
     
-    int shared_mem_size = 2*(csr->cols) * sizeof(int); //declare the size of the shared memory
-    int *last = new int[1];
-    int *d_last;
-    CHECK_CUDA(cudaMalloc((void**)&d_last, sizeof(int)));
-    prefix_scan<<<1, (csr->cols), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last); // maybe csr->cols + 1 !TODO
-    //prefix_scan<<<(csr->cols +16)/16, 16, shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last); // maybe csr->cols + 1 !TODO
-    cudaCheckError();
-    CHECK_CUDA(cudaMemcpy(col_ptr, d_col_ptr, (csr->cols) * sizeof(int), cudaMemcpyDeviceToHost));
-    CHECK_CUDA(cudaMemcpy(last, d_last, sizeof(int), cudaMemcpyDeviceToHost));
-    printf("Last: %d\n", last[0]);
-    //correct last element missing
-    // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda : Figure 39-4 
-    // for(int i = 0; i < csr->cols; i++){
-    //     col_ptr[csr->cols] += col_ptr[i];
-    // } // (d_t_col_indices) /* *** */
-    col_ptr[csr->cols] = last[0];
-    printf("Col Ptr: ");
-    for (int i = 0; i < csr->cols +1; i++) {
-        printf("%d ", col_ptr[i]);
-    }
-    printf("\n");
-    // CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, d_col_ptr, (csr->cols + 1) * sizeof(int), cudaMemcpyHostToDevice));
-    csr_t->row_offsets = col_ptr;
-   
-    //get the data in this format : (val, col, row)
+        prefix_scan<<<1, (csr->cols), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last);
+        cudaCheckError();
+        CHECK_CUDA(cudaMemcpy(col_ptr, d_col_ptr, (csr->cols) * sizeof(int), cudaMemcpyDeviceToHost));
+        CHECK_CUDA(cudaMemcpy(last, d_last, sizeof(int), cudaMemcpyDeviceToHost));
+        // printf("Last: %d\n", last[0]);
+        //correct last element missing
+        // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda : Figure 39-4 
+        // for(int i = 0; i < csr->cols; i++){
+        //     col_ptr[csr->cols] += col_ptr[i];
+        // } // (d_t_col_indices) /* *** */
+        col_ptr[csr->cols] = last[0];
+        // printf("Col Ptr: ");
+        // for (int i = 0; i < csr->cols +1; i++) {
+        //     printf("%d ", col_ptr[i]);
+        // }
+        // printf("\n");
 
-    //order by col 
-    //1 thread per col, .append if col == thdx
-    //join the threads in order
-    //ordered values = loop list[i][0] (d_t_values)  /* *** */
-    // -> call order_by_column, result in d_t_values
-    //row_ptr = loop list[i][2] (d_t_row_offsets)  /* *** */
-    // -> call order_by_column, result in d_t_row_offsets
-    //return csr_t with /* *** */ values
+        csr_t->row_offsets = col_ptr;
     
-    float *d_values, *d_t_values; //ordered values oc trasposed matrix
-    int *d_t_col_indices;
-    int *d_row_offsets, *d_t_row_offsets;
+        //get the data in this format : (val, col, row)
+        //order by col 
+        //1 thread per col, .append if col == thdx
+        //join the threads in order
+        //ordered values = loop list[i][0] (d_t_values)  /* *** */
+        // -> call order_by_column, result in d_t_values
+        //row_ptr = loop list[i][2] (d_t_row_offsets)  /* *** */
+        // -> call order_by_column, result in d_t_row_offsets
+        //return csr_t with /* *** */ values
+        
+        //CHECK_CUDA(cudaMemcpy(d_row_offsets, csr->row_offsets, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
+        CHECK_CUDA(cudaMemcpy(d_row_offsets, col_ptr, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
+        CHECK_CUDA(cudaMemset(d_t_row_offsets, 0, (csr->cols + 1) * sizeof(int)));
 
-    CHECK_CUDA(cudaMalloc((void**)&d_values, csr->nnz * sizeof(float)));
-    CHECK_CUDA(cudaMalloc((void**)&d_t_values, csr->nnz * sizeof(float)));
-    CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices, csr->nnz * sizeof(int)));
-    CHECK_CUDA(cudaMalloc((void**)&d_row_offsets, (csr->rows + 1) * sizeof(int)));
-    CHECK_CUDA(cudaMalloc((void**)&d_t_row_offsets, (csr->cols + 1) * sizeof(int)));
-    CHECK_CUDA(cudaMemcpy(d_values, csr->values, csr->nnz * sizeof(float), cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy(d_row_offsets, csr->row_offsets, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
-    //CHECK_CUDA(cudaMemset(d_t_row_offsets, 0, (csr->cols + 1) * sizeof(int)));
-    CHECK_CUDA(cudaMemset(d_t_col_indices, 0, csr->nnz * sizeof(int)));
-    CHECK_CUDA(cudaMemset(d_t_values, 0, csr->nnz * sizeof(float)));
-
-    //compute row_offsets in cpu
-    int count = 0;
-    for(int i = 0; i < csr->cols; i++){
-        int els = csr->row_offsets[i+1] - csr->row_offsets[i];
-        //memset els time for speed
-        for(int j = 0; j < els; j++){
-            csr_t->col_indices[count] = i;
-            count++;
+        //compute row_offsets in cpu
+        int count = 0;
+        for(int i = 0; i < csr->cols; i++){
+            int els = csr->row_offsets[i+1] - csr->row_offsets[i];
+            //int els = col_ptr[i+1] - col_ptr[i];
+            //memset els time for speed
+            for(int j = 0; j < els; j++){
+                csr_t->col_indices[count] = i; //col indices in crescent order
+                count++;
+            }
         }
-    }
-    // printf("Col Indices Transposed: ");
-    // for(int i = 0; i < csr->nnz; i++){
-    //     printf("%d ", csr_t->col_indices[i]);
-    // }
-    // printf("\n");
-    CHECK_CUDA(cudaMemcpy(d_t_col_indices, csr_t->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
-    int *t_col_indices_ordered = new int[csr->nnz];
-    int *d_t_col_indices_ordered;
-    CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices_ordered, csr->nnz * sizeof(int)));
+        // printf("Col Indices Transposed: ");
+        // for(int i = 0; i < csr->nnz; i++){
+        //     printf("%d ", csr_t->col_indices[i]);
+        // }
+        // printf("\n");
+        CHECK_CUDA(cudaMemcpy(d_t_col_indices, csr_t->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
 
-    //scatterToTransposed<<<(csr->rows + 255) / 256, 256>>>(d_values, d_col_indices, d_row_offsets, d_t_values, d_t_col_indices, d_t_row_offsets, csr->rows);
-    order_by_column<<<(csr->cols + 15) /16, 16>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
-    cudaCheckError();
-    cudaDeviceSynchronize();
+        order_by_column<<<(csr->cols + 15) /16, 16>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
+        //order_by_column<<<1, csr->cols>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
+        //cudaCheckError();
+        cudaDeviceSynchronize();
+    }
     CHECK_CUDA(cudaEventRecord(stopK));
     CHECK_CUDA(cudaEventSynchronize(stopK));
 
+    //return ordered col indices
     CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices_ordered, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
-    printf("Ordered Col Indices Transposed: ");
-    for(int i = 0; i < csr_t->nnz; i++){
-        printf("%d ", csr_t->col_indices[i]);
-    }
-    printf("\n");
+    // printf("Ordered Col Indices Transposed: ");
+    // for(int i = 0; i < csr_t->nnz; i++){
+    //     printf("%d ", csr_t->col_indices[i]);
+    // }
+    // printf("\n");
 
 
     CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
-    printf("Ordered Values Transposed: ");
-    for(int i = 0; i < csr_t->nnz; i++){
-        printf("%f ", csr_t->values[i]);
-    }
-    printf("\n");
-    // CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
-    //CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, t_col_indices_ordered, (csr->cols + 1) * sizeof(int), cudaMemcpyDeviceToHost));
+    // printf("Ordered Values Transposed: ");
+    // for(int i = 0; i < csr_t->nnz; i++){
+    //     printf("%f ", csr_t->values[i]);
+    // }
+    // printf("\n");
 
     CHECK_CUDA(cudaEventRecord(stop));
     CHECK_CUDA(cudaEventSynchronize(stop));
@@ -503,9 +519,9 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaEventElapsedTime(&millisecondsK, startK, stopK));
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
-    int N = 1000; /* *** should be the real matrix size */
-    float ogbs = 2 * N * N * sizeof(float) * 1e-6 / milliseconds; // * TRANSPOSITIONS
-    float kgbs = 2 * N * N * sizeof(float) * 1e-6 / millisecondsK; // * TRANSPOSITIONS
+    int N = csr->cols;
+    float ogbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / milliseconds; 
+    float kgbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / millisecondsK;
     printf("Time for executing transpose operation: %f ms\n", milliseconds);
     PRINTF("Operation Time: %11.2f ms\n", milliseconds);
     PRINTF("Operation Throughput in GB/s: %7.2f\n", ogbs);
@@ -521,11 +537,14 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
 
     CHECK_CUDA(cudaFree(d_col_indices));
     CHECK_CUDA(cudaFree(d_col_counts));
+    CHECK_CUDA(cudaFree(d_col_ptr));
+    CHECK_CUDA(cudaFree(d_last));
     CHECK_CUDA(cudaFree(d_values));
     CHECK_CUDA(cudaFree(d_t_values));
     CHECK_CUDA(cudaFree(d_t_col_indices));
     CHECK_CUDA(cudaFree(d_row_offsets));
     CHECK_CUDA(cudaFree(d_t_row_offsets));
+    CHECK_CUDA(cudaFree(d_t_col_indices_ordered));
 
     PRINTF("Transpose Completed.\n");
 
