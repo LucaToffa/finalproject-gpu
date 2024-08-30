@@ -6,6 +6,7 @@
 #include <cuda_runtime.h>
 #include <cusparse.h>
 #include <fstream>
+#include "../include/kernels.cuh"
 
 
 int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
@@ -17,14 +18,21 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
         return 1;
     }
     printf("cuSparseCSRt\n");
+
+     // ? Create cuda events to measure time
+    cudaEvent_t start, stop;
+    CHECK_CUDA(cudaEventCreate(&start));
+    CHECK_CUDA(cudaEventCreate(&stop));
+    CHECK_CUDA(cudaEventRecord(start));
+
     // ? Create cuSPARSE handle and matrix descriptor
     cusparseHandle_t handle;
     cusparseMatDescr_t descr;
-    CHECK_CUSPARSE(cusparseCreate(&handle));
-    CHECK_CUSPARSE(cusparseCreateMatDescr(&descr));
+    // CHECK_CUSPARSE(cusparseCreate(&handle));
+    // CHECK_CUSPARSE(cusparseCreateMatDescr(&descr));
     // ? Set matrix type and index base
-    CHECK_CUSPARSE(cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL));
-    CHECK_CUSPARSE(cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO));
+    // CHECK_CUSPARSE(cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL));
+    // CHECK_CUSPARSE(cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO));
     size_t bufferSize = 0;
     int* d_in_row_offsets, *d_in_cols, *d_out_row_offsets, *d_out_cols;
     float* d_in_values, *d_out_values;
@@ -36,10 +44,7 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
     CHECK_CUDA(cudaMalloc((void**)&d_out_row_offsets, (in->cols + 1) * sizeof(int)));
     CHECK_CUDA(cudaMalloc((void**)&d_out_cols, out->nnz * sizeof(int)));
     CHECK_CUDA(cudaMalloc((void**)&d_out_values, out->nnz * sizeof(float)));
-    // ? Create cuda events to measure time
-    cudaEvent_t start, stop;
-    CHECK_CUDA(cudaEventCreate(&start));
-    CHECK_CUDA(cudaEventCreate(&stop));
+   
     // ? Copy data from host to device for Input Matrix
     CHECK_CUDA(cudaMemcpy(d_in_row_offsets, in->row_offsets, (in->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_in_cols, in->col_indices, in->nnz * sizeof(int), cudaMemcpyHostToDevice));
@@ -48,30 +53,41 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
     cudaEvent_t startK, stopK;
     CHECK_CUDA(cudaEventCreate(&startK));
     CHECK_CUDA(cudaEventCreate(&stopK));
-    CHECK_CUDA(cudaEventRecord(startK))
-
-    // ? Find buffer size to perform the transpose
-    CHECK_CUSPARSE(cusparseCsr2cscEx2_bufferSize(
-        handle,
-        in->rows, in->cols, in->nnz,
-        d_in_values, d_in_row_offsets, d_in_cols,
-        d_out_values, d_out_row_offsets, d_out_cols,
-        CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG1, &bufferSize
-    ));
-    printf("Buffer size: %lu\n", bufferSize);
-    // ? Allocate memory on device for buffer
+    
     void* dBuffer = NULL;
-    CHECK_CUDA(cudaMalloc(&dBuffer, bufferSize));
-    // ? Record time before performing the transpose operation
-    CHECK_CUDA(cudaEventRecord(start));
-    // ? Perform the actual transpose operation on device
-    CHECK_CUSPARSE(cusparseCsr2cscEx2(
-        handle,
-        in->rows, in->cols, in->nnz,
-        d_in_values, d_in_row_offsets, d_in_cols,
-        d_out_values, d_out_row_offsets, d_out_cols,
-        CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG1, dBuffer
-    ));
+    dummy_kernel<<<1,1>>>();
+    CHECK_CUDA(cudaEventRecord(startK))
+    for(int i = 0; i < TRANSPOSITIONS; i++) {
+        CHECK_CUSPARSE(cusparseCreate(&handle));
+        CHECK_CUSPARSE(cusparseCreateMatDescr(&descr));
+        CHECK_CUSPARSE(cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL));
+        CHECK_CUSPARSE(cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO));
+        // ? Find buffer size to perform the transpose
+        CHECK_CUSPARSE(cusparseCsr2cscEx2_bufferSize(
+            handle,
+            in->rows, in->cols, in->nnz,
+            d_in_values, d_in_row_offsets, d_in_cols,
+            d_out_values, d_out_row_offsets, d_out_cols,
+            CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG1, &bufferSize
+        ));
+        //printf("Buffer size: %lu\n", bufferSize);
+        // ? Allocate memory on device for buffer
+        // void* dBuffer = NULL;
+        CHECK_CUDA(cudaMalloc(&dBuffer, bufferSize));
+        // ? Record time before performing the transpose operation
+        // CHECK_CUDA(cudaEventRecord(start));
+        // ? Perform the actual transpose operation on device
+        CHECK_CUSPARSE(cusparseCsr2cscEx2(
+            handle,
+            in->rows, in->cols, in->nnz,
+            d_in_values, d_in_row_offsets, d_in_cols,
+            d_out_values, d_out_row_offsets, d_out_cols,
+            CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG1, dBuffer
+        ));
+        CHECK_CUDA(cudaFree(dBuffer));
+        CHECK_CUSPARSE(cusparseDestroy(handle));
+        CHECK_CUSPARSE(cusparseDestroyMatDescr(descr));
+    }
     // ? Record time after performing the transpose operation
     CHECK_CUDA(cudaEventRecord(stopK));
     // ? Copy data from device to host for Output Matrix
@@ -86,7 +102,7 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
 
-    int N = 1000; /* *** should be the real matrix size */
+    int N = in->cols; /* *** should be the real matrix size */
     float ogbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / milliseconds;
     float kgbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / millisecondsK;
     printf("Time for executing cuSPARSECSRt operation: %f ms\n", milliseconds);
@@ -126,9 +142,9 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
     CHECK_CUDA(cudaFree(d_out_row_offsets));
     CHECK_CUDA(cudaFree(d_out_cols));
     CHECK_CUDA(cudaFree(d_out_values));
-    CHECK_CUDA(cudaFree(dBuffer));
+    // CHECK_CUDA(cudaFree(dBuffer));
     // ? Destroy cuSPARSE handle and matrix descriptor
-    CHECK_CUSPARSE(cusparseDestroy(handle));
-    CHECK_CUSPARSE(cusparseDestroyMatDescr(descr));
+    // CHECK_CUSPARSE(cusparseDestroy(handle));
+    // CHECK_CUSPARSE(cusparseDestroyMatDescr(descr));
     return 0;
 }

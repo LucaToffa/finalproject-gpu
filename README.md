@@ -38,3 +38,16 @@ make clean
 make all
 sbatch sbatch.sh
 ```
+
+#### csr data organization
+```c
+//get the data in this format : (val, col, row)
+//order by col 
+//1 thread per col, .append if col == thdx
+//join the threads in order
+//ordered values = loop list[i][0] (d_t_values)  /* *** */
+// -> call order_by_column, result in d_t_values
+//row_ptr = loop list[i][2] (d_t_row_offsets)  /* *** */
+// -> call order_by_column, result in d_t_row_offsets
+//return csr_t with /* *** */ values
+```

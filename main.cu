@@ -11,15 +11,17 @@
 const int matrix_number = 10;
 const char* matrix_list[] = { //for some reason in the original order csr load broke ???
     //"matrices/bcsstm01.mtx", //not included in the final list
+    "matrices/08blocks.mtx",
+    "matrices/GD01_Acap.mtx",
     "matrices/494_bus.mtx",
     "matrices/circuit204.mtx",
     "matrices/collins_15NN.mtx",
     "matrices/lowThrust_1.mtx",
     "matrices/orbitRaising_3.mtx",
     "matrices/spaceStation_5.mtx",
-    "matrices/tomography.mtx",
+    //"matrices/tomography.mtx",
     "matrices/umistfacesnorm_10NN.mtx",
-    "matrices/Vehicle_10NN.mtx",
+    //"matrices/Vehicle_10NN.mtx",
     "matrices/west0989.mtx"
 };
 
@@ -163,27 +165,27 @@ int complete_benchmark() {
         output.open("logs/results.log", std::ios::out | std::ios_base::app);
         //output << i << "\n";
         output.close();
-        // PRINTF("main.cu) calling cuCOOt kernel\n");
-        // if(coo_transposition(coo)) {
-        //     printf("error in coo transpose, matrix #%d\n", i); 
-        // }
+        PRINTF("main.cu) calling cuSparseCSRt kernel\n");
+        if(cuSparseCSRt(csr, csr_t)) {
+            printf("error in cuSparse transpose, matrix #%d\n", i);
+        }
+        PRINTF("main.cu) calling cuCOOt kernel\n");
+        if(coo_transposition(coo)) {
+            printf("error in coo transpose, matrix #%d\n", i); 
+        }
         PRINTF("main.cu) calling cuCSRt kernel\n");
         if(csr_transposition(csr, csr_t)) {
             printf("error in csr transpose, matrix #%d\n", i);
         }
-        // PRINTF("main.cu) calling block kernel\n");
-        // if(block_trasposition(uncompressed, dense_mat_size)) {
-        //     printf("error in block transpose, matrix #%d\n", i);
-        // }
-        // PRINTF("main.cu) calling conflict kernel\n");
-        // if(conflict_transposition(uncompressed, dense_mat_size)) {
-        //     printf("error in conflict transpose, matrix #%d\n", i);
-        // }
-        // PRINTF("main.cu) calling cuSparseCSRt kernel\n");
-        // if(cuSparseCSRt(csr, csr_t)) {
-        //     printf("error in cuSparse transpose, matrix #%d\n", i);
-        // }
-        // printf("main.cu) matrix #%d done\n", i);
+        PRINTF("main.cu) calling block kernel\n");
+        if(block_trasposition(uncompressed, dense_mat_size)) {
+            printf("error in block transpose, matrix #%d\n", i);
+        }
+        PRINTF("main.cu) calling conflict kernel\n");
+        if(conflict_transposition(uncompressed, dense_mat_size)) {
+            printf("error in conflict transpose, matrix #%d\n", i);
+        }
+        printf("main.cu) matrix #%d done\n", i);
 
         //delete everything
         delete[] coo->el;

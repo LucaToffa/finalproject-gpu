@@ -5,6 +5,7 @@
 #include "csr.h"
 #include <cuda_runtime.h>
 
+__global__ void dummy_kernel();
 __global__ void cuCOOtCopy(coo_element *in, coo_element *out, size_t nnz);
 __global__ void cuCOOt(coo_element *in, size_t nnz);
 __global__ void csr_transpose(csr_matrix *csr);

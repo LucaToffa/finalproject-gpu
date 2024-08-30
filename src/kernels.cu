@@ -5,6 +5,9 @@
 #include <cuda_runtime.h>
 #include <cassert>
 
+__global__ void dummy_kernel(){
+    return;
+}
 /**
  * @brief Kernel to Transpose a COO Matrix out of place
     * @param[in] in - COO Matrix to be transposed
