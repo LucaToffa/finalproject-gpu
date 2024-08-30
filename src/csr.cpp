@@ -28,11 +28,13 @@ csr_matrix* new_csr_matrix(int rows, int cols, int nnz, int *row_offsets, int *c
 }
 
 csr_matrix* new_csr_matrix(int rows, int cols, int nnz) {
+    int rows_padded = next_power_of_2(std::max(rows, cols));
+    int cols_padded = next_power_of_2(std::max(rows, cols));
     csr_matrix *csr = new csr_matrix {
-        .rows = rows,
-        .cols = cols,
+        .rows = rows_padded,
+        .cols = cols_padded,
         .nnz = nnz,
-        .row_offsets = new int[rows + 1],
+        .row_offsets = new int[rows_padded + 1],
         .col_indices = new int[nnz],
         .values = new float[nnz]
     };
@@ -199,15 +201,17 @@ int pretty_print_csr_matrix(const csr_matrix *csr, std::ostream &out) {
 
 
 csc_matrix* new_csc_matrix(int rows, int cols, int nnz){
+    int rows_padded = next_power_of_2(std::max(rows, cols));
+    int cols_padded = next_power_of_2(std::max(rows, cols));
     csc_matrix *csc = new csc_matrix {
-        .rows = rows,
-        .cols = cols,
+        .rows = rows_padded,
+        .cols = cols_padded,
         .nnz = nnz,
-        .col_offsets = new int[cols + 1],
+        .col_offsets = new int[cols_padded + 1],
         .row_indices = new int[nnz],
         .values = new float[nnz]
     };
-    memset(csc->col_offsets, 0, (cols + 1) * sizeof(int));
+    memset(csc->col_offsets, 0, (cols_padded + 1) * sizeof(int));
     memset(csc->row_indices, 0, nnz * sizeof(int));
     memset(csc->values, 0, nnz * sizeof(float));
     return csc;

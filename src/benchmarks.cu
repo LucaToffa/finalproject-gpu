@@ -11,6 +11,7 @@
 #include <thrust/functional.h>
 #include <fstream>
 
+// ! TODO: add for(int i = 0; i < TRANSPOSITIONS; i++){} to all methods
 
 int coo_transposition(coo_matrix* coo) {
     PRINTF("--------------------\n");
@@ -353,22 +354,17 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     cudaEvent_t start, stop;
     CHECK_CUDA(cudaEventCreate(&start));
     CHECK_CUDA(cudaEventCreate(&stop));
+    CHECK_CUDA(cudaEventRecord(start));
 
-    csr->rows = 8;
-    csr->cols = 8;
-    csr->nnz = 7;
-    delete[] csr->row_offsets;
-    delete[] csr->col_indices;
-    delete[] csr->values;
-    csr->row_offsets = new int[csr->rows + 1]{0, 3, 4, 6, 7, 7, 7, 7, 7};
-    // memset(csr->row_offsets, 7, 8 * sizeof(int)); 
-    // csr->row_offsets[0] = 0;
-    // csr->row_offsets[1] = 3;
-    // csr->row_offsets[2] = 4;
-    // csr->row_offsets[3] = 6;
-    // csr->row_offsets[4] = 7;
-    csr->col_indices = new int[7]{0, 2, 3, 1, 2, 3, 3};
-    csr->values = new float[7]{10, 20, 30, 40, 50, 60, 70};
+    // csr->rows = 8;
+    // csr->cols = 8;
+    // csr->nnz = 7;
+    // delete[] csr->row_offsets;
+    // delete[] csr->col_indices;
+    // delete[] csr->values;
+    // csr->row_offsets = new int[csr->rows + 1]{0, 3, 4, 6, 7, 7, 7, 7, 7};
+    // csr->col_indices = new int[7]{0, 2, 3, 1, 2, 3, 3};
+    // csr->values = new float[7]{10, 20, 30, 40, 50, 60, 70};
 
     // Copy input CSR data to device
     int *d_col_indices, *d_col_counts;
@@ -378,7 +374,6 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaMemcpy(d_col_indices, csr->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemset(d_col_counts, 0, csr->cols * sizeof(int)));
 
-    CHECK_CUDA(cudaEventRecord(start));
 
     cudaEvent_t startK, stopK;
     CHECK_CUDA(cudaEventCreate(&startK));
@@ -386,17 +381,18 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     CHECK_CUDA(cudaEventRecord(startK));
     countNNZPerColumn<<<((csr->nnz + 255) / 256), 256>>>(d_col_indices, d_col_counts, csr->nnz);
 
-    //cudaMemcpy(csr_t->col_indices, d_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(csr_t->col_indices, d_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(csr_t->row_offsets, d_col_counts, csr->cols * sizeof(int), cudaMemcpyDeviceToHost);
     printf("Row Offsets: ");
     for (int i = 0; i < csr->cols; i++) {
         printf("%d ", csr_t->row_offsets[i]);
     }
     printf("\n");
-    // printf("Col Indices: ");
-    // for (int i = 0; i < csr->nnz; i++) {
-    //     printf("%d ", csr_t->col_indices[i]);
-    // }
+    printf("Col Indices: ");
+    for (int i = 0; i < csr->nnz; i++) {
+        printf("%d ", csr_t->col_indices[i]);
+    }
+    printf("\n");
 
     // ? Here we compute the exclusive scan from the column counts in the csr_t->col_ptr
     // TODO: Check if this works
@@ -406,16 +402,16 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     int *d_col_ptr;
     CHECK_CUDA(cudaMalloc((void**)&d_col_ptr, (csr->cols) * sizeof(int)));
     
-    int shared_mem_size = (csr->cols) * sizeof(int); //declare the size of the shared memory
+    int shared_mem_size = 2*(csr->cols) * sizeof(int); //declare the size of the shared memory
     int *last = new int[1];
     int *d_last;
     CHECK_CUDA(cudaMalloc((void**)&d_last, sizeof(int)));
     prefix_scan<<<1, (csr->cols), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last); // maybe csr->cols + 1 !TODO
-    // prefix_scan<<<(csr->cols +15)/16, 16, shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last); // maybe csr->cols + 1 !TODO
+    //prefix_scan<<<(csr->cols +16)/16, 16, shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last); // maybe csr->cols + 1 !TODO
     cudaCheckError();
     CHECK_CUDA(cudaMemcpy(col_ptr, d_col_ptr, (csr->cols) * sizeof(int), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(last, d_last, sizeof(int), cudaMemcpyDeviceToHost));
-    //printf("Last: %d\n", last[0]);
+    printf("Last: %d\n", last[0]);
     //correct last element missing
     // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda : Figure 39-4 
     // for(int i = 0; i < csr->cols; i++){
@@ -427,6 +423,8 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
         printf("%d ", col_ptr[i]);
     }
     printf("\n");
+    // CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, d_col_ptr, (csr->cols + 1) * sizeof(int), cudaMemcpyHostToDevice));
+    csr_t->row_offsets = col_ptr;
    
     //get the data in this format : (val, col, row)
 
@@ -478,19 +476,20 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     order_by_column<<<(csr->cols + 15) /16, 16>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
     cudaCheckError();
     cudaDeviceSynchronize();
+    CHECK_CUDA(cudaEventRecord(stopK));
+    CHECK_CUDA(cudaEventSynchronize(stopK));
+
     CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices_ordered, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
     printf("Ordered Col Indices Transposed: ");
-    for(int i = 0; i < csr->nnz; i++){
+    for(int i = 0; i < csr_t->nnz; i++){
         printf("%d ", csr_t->col_indices[i]);
     }
     printf("\n");
 
-    CHECK_CUDA(cudaEventRecord(stopK));
-    CHECK_CUDA(cudaEventSynchronize(stopK));
 
     CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
     printf("Ordered Values Transposed: ");
-    for(int i = 0; i < csr->nnz; i++){
+    for(int i = 0; i < csr_t->nnz; i++){
         printf("%f ", csr_t->values[i]);
     }
     printf("\n");
@@ -505,8 +504,8 @@ int transposeCSRToCSC_cuda(csr_matrix *csr, csr_matrix *csr_t) {
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
     int N = 1000; /* *** should be the real matrix size */
-    float ogbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / milliseconds;
-    float kgbs = 2 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS / millisecondsK;
+    float ogbs = 2 * N * N * sizeof(float) * 1e-6 / milliseconds; // * TRANSPOSITIONS
+    float kgbs = 2 * N * N * sizeof(float) * 1e-6 / millisecondsK; // * TRANSPOSITIONS
     printf("Time for executing transpose operation: %f ms\n", milliseconds);
     PRINTF("Operation Time: %11.2f ms\n", milliseconds);
     PRINTF("Operation Throughput in GB/s: %7.2f\n", ogbs);

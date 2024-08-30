@@ -161,7 +161,8 @@ __global__ void basic_transpose(float *input, float *output, int N){
 __global__ void prefix_scan(int *g_odata, int *g_idata, int n, int *last)
 {   
     extern __shared__ int temp[]; // allocated on invocation
-    int thid = threadIdx.x + blockIdx.x * blockDim.x;
+    int thid = threadIdx.x;// + blockIdx.x * blockDim.x;
+    // if(thid >= 2*n) return;
     //printf("prefix_scan) n: %d, thr: %d\n", n, thid);
     int offset = 1;
     temp[2 * thid] = g_idata[2 * thid]; // load input into shared memory
@@ -202,3 +203,67 @@ __global__ void prefix_scan(int *g_odata, int *g_idata, int n, int *last)
     g_odata[2 * thid] = temp[2 * thid]; // write results to device memory
     g_odata[2 * thid + 1] = temp[2 * thid + 1];
 }
+
+
+// #define SHARED_MEMORY_BANKS 32
+// #define LOG_MEM_BANKS 5
+// #define CONFLICT_FREE_OFFSET(n) ((n) >> LOG_MEM_BANKS)
+
+// __global__ void prescan_large(int *output, int *input, int n, int *sums) {
+// 	extern __shared__ int temp[];
+
+// 	int blockID = blockIdx.x;
+// 	int threadID = threadIdx.x;
+// 	int blockOffset = blockID * n;
+	
+// 	int ai = threadID;
+// 	int bi = threadID + (n / 2);
+// 	int bankOffsetA = CONFLICT_FREE_OFFSET(ai);
+// 	int bankOffsetB = CONFLICT_FREE_OFFSET(bi);
+// 	temp[ai + bankOffsetA] = input[blockOffset + ai];
+// 	temp[bi + bankOffsetB] = input[blockOffset + bi];
+
+// 	int offset = 1;
+// 	for (int d = n >> 1; d > 0; d >>= 1) // build sum in place up the tree
+// 	{
+// 		__syncthreads();
+// 		if (threadID < d)
+// 		{
+// 			int ai = offset * (2 * threadID + 1) - 1;
+// 			int bi = offset * (2 * threadID + 2) - 1;
+// 			ai += CONFLICT_FREE_OFFSET(ai);
+// 			bi += CONFLICT_FREE_OFFSET(bi);
+
+// 			temp[bi] += temp[ai];
+// 		}
+// 		offset *= 2;
+// 	}
+// 	__syncthreads();
+
+
+// 	if (threadID == 0) { 
+// 		sums[blockID] = temp[n - 1 + CONFLICT_FREE_OFFSET(n - 1)];
+// 		temp[n - 1 + CONFLICT_FREE_OFFSET(n - 1)] = 0;
+// 	} 
+	
+// 	for (int d = 1; d < n; d *= 2) // traverse down tree & build scan
+// 	{
+// 		offset >>= 1;
+// 		__syncthreads();
+// 		if (threadID < d)
+// 		{
+// 			int ai = offset * (2 * threadID + 1) - 1;
+// 			int bi = offset * (2 * threadID + 2) - 1;
+// 			ai += CONFLICT_FREE_OFFSET(ai);
+// 			bi += CONFLICT_FREE_OFFSET(bi);
+
+// 			int t = temp[ai];
+// 			temp[ai] = temp[bi];
+// 			temp[bi] += t;
+// 		}
+// 	}
+// 	__syncthreads();
+
+// 	output[blockOffset + ai] = temp[ai + bankOffsetA];
+// 	output[blockOffset + bi] = temp[bi + bankOffsetB];
+// }
