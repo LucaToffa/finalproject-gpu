@@ -4,6 +4,7 @@
 #include "../include/kernels.cuh"
 #include "../include/debug.h"
 #include <cstdio>
+#include <cstring>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <thrust/scan.h>
@@ -104,40 +105,6 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
         printf("Failed to set CUDA device\n");
         return 1;
     }
-    // Example CSR matrix
-    //assign real values instead of random
-    // thrust::host_vector<float> h_values(8);// = {10, 20, 30, 40, 50, 60, 70, 80};
-    // h_values[0] = 10; h_values[1] = 20; h_values[2] = 30; h_values[3] = 40; //TEMP just to avoid compiler error
-    // h_values[4] = 50; h_values[5] = 60; h_values[6] = 70; h_values[7] = 80;
-    // thrust::host_vector<int> h_col_indices(8);// = {0, 2, 1, 0, 1, 2, 0, 1};
-    // h_col_indices[0] = 0; h_col_indices[1] = 2; h_col_indices[2] = 1; h_col_indices[3] = 0;
-    // h_col_indices[4] = 1; h_col_indices[5] = 2; h_col_indices[6] = 0; h_col_indices[7] = 1;
-    // thrust::host_vector<int> h_row_ptr(5);// = {0, 2, 4, 7, 8};
-    // h_row_ptr[0] = 0; h_row_ptr[1] = 2; h_row_ptr[2] = 4; h_row_ptr[3] = 7; h_row_ptr[4] = 8;
-    // int num_rows = 4;
-    // int num_cols = 3;
-
-    // // Device vectors for transposed matrix
-    // thrust::device_vector<float> d_t_values;
-    // thrust::device_vector<int> d_t_row_indices;
-    // thrust::device_vector<int> d_t_col_ptr;
-
-    // // Transpose the matrix
-    // transposeCSRToCSC(h_values, h_col_indices, h_row_ptr, num_rows, num_cols, d_t_values, d_t_row_indices, d_t_col_ptr);
-
-    // // Copy the results back to the host and print
-    // thrust::host_vector<float> h_t_values = d_t_values;
-    // thrust::host_vector<int> h_t_row_indices = d_t_row_indices;
-    // thrust::host_vector<int> h_t_col_ptr = d_t_col_ptr;
-
-    // printf("Original Matrix:\n");
-    // pretty_print_matrix(h_values, h_col_indices, h_row_ptr, num_rows, num_cols);
-
-    // printf("Transposed Matrix:\n");
-    // pretty_print_matrix(h_t_values, h_t_row_indices, h_t_col_ptr, num_rows, num_cols); // ! error invert num_rows and num_cols
-
-    
-    // int ret = transposeCSRToCSC_cuda(csr, csr_t);
     assert(csr != NULL && csr_t != NULL);
     assert(csr->rows == csr_t->cols && csr->cols == csr_t->rows);
     PRINTF("Transpose CSR to CSC Cuda Method Called: transposeCSRToCSC_cuda().\n");
@@ -162,7 +129,6 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
     int *d_last;
     CHECK_CUDA(cudaMalloc((void**)&d_last, sizeof(int)));
 
-
     float *d_values, *d_t_values; //ordered values of trasposed matrix
     int *d_t_col_indices;
     int *d_row_offsets, *d_t_row_offsets;
@@ -182,90 +148,66 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
     int *d_t_col_indices_ordered;
     CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices_ordered, csr->nnz * sizeof(int)));
 
-    cudaEvent_t startK, stopK;
-    CHECK_CUDA(cudaEventCreate(&startK));
-    CHECK_CUDA(cudaEventCreate(&stopK));
-
     dummy_kernel<<<1,1>>>();
-    CHECK_CUDA(cudaEventRecord(startK));
 
+    float millisecondsK = 0;
     int * zeroes = new int[csr->cols];
     memset(zeroes, 0, csr->cols * sizeof(int)); //copy slightly better than memset
-    for(int i = 0; i < TRANSPOSITIONS; i++)
-    {
-        //use origin col indices
+    for(int i = 0; i < TRANSPOSITIONS; i++) {
         CHECK_CUDA(cudaMemcpy(d_col_counts, zeroes, csr->cols * sizeof(int), cudaMemcpyHostToDevice)); //reset col counts to compute correctly
+        
+        cudaEvent_t startK1, stopK1;
+        float millisecondsK1 = 0;
+        CHECK_CUDA(cudaEventCreate(&startK1));
+        CHECK_CUDA(cudaEventCreate(&stopK1));
+        CHECK_CUDA(cudaEventRecord(startK1));
+
         countNNZPerColumn<<<((csr->nnz + 255) / 256), 256>>>(d_col_indices, d_col_counts, csr->nnz);
-    
         prefix_scan<<<1, (csr->cols), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last);
+
+        CHECK_CUDA(cudaEventRecord(stopK1));
+        CHECK_CUDA(cudaEventSynchronize(stopK1));
+        CHECK_CUDA(cudaEventElapsedTime(&millisecondsK1, startK1, stopK1));
+
         cudaCheckError();
         CHECK_CUDA(cudaMemcpy(col_ptr, d_col_ptr, (csr->cols) * sizeof(int), cudaMemcpyDeviceToHost));
         CHECK_CUDA(cudaMemcpy(last, d_last, sizeof(int), cudaMemcpyDeviceToHost));
-        // printf("Last: %d\n", last[0]);
-        //correct last element missing
         // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda : Figure 39-4 
-        // for(int i = 0; i < csr->cols; i++){
-        //     col_ptr[csr->cols] += col_ptr[i];
-        // } // (d_t_col_indices) /* *** */
         col_ptr[csr->cols] = last[0];
-        // printf("Col Ptr: ");
-        // for (int i = 0; i < csr->cols +1; i++) {
-        //     printf("%d ", col_ptr[i]);
-        // }
-        // printf("\n");
-
         csr_t->row_offsets = col_ptr;
-        
-        //CHECK_CUDA(cudaMemcpy(d_row_offsets, csr->row_offsets, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
         CHECK_CUDA(cudaMemcpy(d_row_offsets, col_ptr, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
-        //CHECK_CUDA(cudaMemset(d_t_row_offsets, 0, (csr->cols + 1) * sizeof(int)));
-
         //compute row_offsets in cpu
         int count = 0;
-        for(int i = 0; i < csr->cols; i++){
+        for(int i = 0; i < csr->cols; i++) {
             int els = csr->row_offsets[i+1] - csr->row_offsets[i];
-            //int els = col_ptr[i+1] - col_ptr[i];
-            //memset els time for speed
-            for(int j = 0; j < els; j++){
+            for(int j = 0; j < els; j++) {
                 csr_t->col_indices[count] = i; //col indices in crescent order
                 count++;
             }
         }
-        // printf("Col Indices Transposed: ");
-        // for(int i = 0; i < csr->nnz; i++){
-        //     printf("%d ", csr_t->col_indices[i]);
-        // }
-        // printf("\n");
         CHECK_CUDA(cudaMemcpy(d_t_col_indices, csr_t->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
 
+        cudaEvent_t startK2, stopK2;
+        float millisecondsK2 = 0;
+        CHECK_CUDA(cudaEventCreate(&startK2));
+        CHECK_CUDA(cudaEventCreate(&stopK2));
+        CHECK_CUDA(cudaEventRecord(startK2));
         order_by_column<<<(csr->cols + 15) /16, 16>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
-        //order_by_column<<<1, csr->cols>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
-        //cudaCheckError();
+        CHECK_CUDA(cudaEventRecord(stopK2));
+        CHECK_CUDA(cudaEventSynchronize(stopK2));
+        CHECK_CUDA(cudaEventElapsedTime(&millisecondsK2, startK2, stopK2));
         cudaDeviceSynchronize();
+        millisecondsK += millisecondsK1 + millisecondsK2;
     }
-    CHECK_CUDA(cudaEventRecord(stopK));
-    CHECK_CUDA(cudaEventSynchronize(stopK));
+    //return ordered col indices
+    CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices_ordered, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
 
-        //return ordered col indices
-        CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices_ordered, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
-        // printf("Ordered Col Indices Transposed: ");
-        // for(int i = 0; i < csr_t->nnz; i++){
-        //     printf("%d ", csr_t->col_indices[i]);
-        // }
-        // printf("\n");
-
-
-        CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
-        // printf("Ordered Values Transposed: ");
-        // for(int i = 0; i < csr_t->nnz; i++){
-        //     printf("%f ", csr_t->values[i]);
-        // }
-        // printf("\n");
     CHECK_CUDA(cudaEventRecord(stop));
     CHECK_CUDA(cudaEventSynchronize(stop));
 
-    float millisecondsK = 0;
-    CHECK_CUDA(cudaEventElapsedTime(&millisecondsK, startK, stopK));
+    //float millisecondsK = 0;
+    //CHECK_CUDA(cudaEventElapsedTime(&millisecondsK, startK, stopK));
     float milliseconds = 0;
     CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
     int N = csr->cols;
@@ -312,12 +254,6 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
         PRINTF("--------------------\n");
         return -1;
     }
-
-    // if (ret == 0) {
-    //     PRINTF("Transposition Completed Succesfully.\n");
-    // } else {
-    //     PRINTF("Transposition Completed Unsuccesfully.\n");
-    // }
     PRINTF("--------------------\n");
     return 0;
 }
