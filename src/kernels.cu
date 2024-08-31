@@ -34,15 +34,6 @@ __global__ void cuCOOt(coo_element *in, size_t nnz) {
     }
 }
 
-/**
- * @brief Kernel to Transpose a CSR Matrix out of place
-    * @param[in] in
-    * @param[out] out
-*/
-__global__ void csr_transpose(const csr_matrix *in, csr_matrix *out) {
-    //TODO: implement, now is random garbage
-    //int i = blockIdx.x * blockDim.x + threadIdx.x;
-}
 // Kernel to count the number of non-zero entries per column
 __global__ void countNNZPerColumn(const int* col_indices, int* col_counts, int nnz) {
     // col_indices : [ 0 2 3 2 3 3 ]
@@ -79,7 +70,7 @@ __global__ void order_by_column(const float* values, const int* col_indices, //c
     int start_offset = t_col_indices[col]; //col_ptr 0 1 2 4 7 
     int num_values = d_col_counts[col]; //1 1 2 3
     int pos = 0;
-    if(col < num_cols){
+    if (col < num_cols) {
         for(int i = 0; i < nnz; i++){
             if(col == col_indices[i]){
                 //append to the end of the array val
@@ -89,7 +80,6 @@ __global__ void order_by_column(const float* values, const int* col_indices, //c
             }
         }
         assert(num_values == pos);
-
     }
 }
 
@@ -205,67 +195,3 @@ __global__ void prefix_scan(int *g_odata, int *g_idata, int n, int *last)
     g_odata[2 * thid] = temp[2 * thid]; // write results to device memory
     g_odata[2 * thid + 1] = temp[2 * thid + 1];
 }
-
-
-// #define SHARED_MEMORY_BANKS 32
-// #define LOG_MEM_BANKS 5
-// #define CONFLICT_FREE_OFFSET(n) ((n) >> LOG_MEM_BANKS)
-
-// __global__ void prescan_large(int *output, int *input, int n, int *sums) {
-// 	extern __shared__ int temp[];
-
-// 	int blockID = blockIdx.x;
-// 	int threadID = threadIdx.x;
-// 	int blockOffset = blockID * n;
-	
-// 	int ai = threadID;
-// 	int bi = threadID + (n / 2);
-// 	int bankOffsetA = CONFLICT_FREE_OFFSET(ai);
-// 	int bankOffsetB = CONFLICT_FREE_OFFSET(bi);
-// 	temp[ai + bankOffsetA] = input[blockOffset + ai];
-// 	temp[bi + bankOffsetB] = input[blockOffset + bi];
-
-// 	int offset = 1;
-// 	for (int d = n >> 1; d > 0; d >>= 1) // build sum in place up the tree
-// 	{
-// 		__syncthreads();
-// 		if (threadID < d)
-// 		{
-// 			int ai = offset * (2 * threadID + 1) - 1;
-// 			int bi = offset * (2 * threadID + 2) - 1;
-// 			ai += CONFLICT_FREE_OFFSET(ai);
-// 			bi += CONFLICT_FREE_OFFSET(bi);
-
-// 			temp[bi] += temp[ai];
-// 		}
-// 		offset *= 2;
-// 	}
-// 	__syncthreads();
-
-
-// 	if (threadID == 0) { 
-// 		sums[blockID] = temp[n - 1 + CONFLICT_FREE_OFFSET(n - 1)];
-// 		temp[n - 1 + CONFLICT_FREE_OFFSET(n - 1)] = 0;
-// 	} 
-	
-// 	for (int d = 1; d < n; d *= 2) // traverse down tree & build scan
-// 	{
-// 		offset >>= 1;
-// 		__syncthreads();
-// 		if (threadID < d)
-// 		{
-// 			int ai = offset * (2 * threadID + 1) - 1;
-// 			int bi = offset * (2 * threadID + 2) - 1;
-// 			ai += CONFLICT_FREE_OFFSET(ai);
-// 			bi += CONFLICT_FREE_OFFSET(bi);
-
-// 			int t = temp[ai];
-// 			temp[ai] = temp[bi];
-// 			temp[bi] += t;
-// 		}
-// 	}
-// 	__syncthreads();
-
-// 	output[blockOffset + ai] = temp[ai + bankOffsetA];
-// 	output[blockOffset + bi] = temp[bi + bankOffsetB];
-// }
