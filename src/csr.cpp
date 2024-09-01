@@ -173,17 +173,9 @@ int pretty_print_csr_matrix(const csr_matrix *csr, std::ostream &out) {
     for (int i = 0; i < csr->rows; i++) {
         for (int j = 0; j < csr->cols; j++) {
             bool found = false;
-            /*
-            if (i+1 >= csr->rows) {
-                printf("Error: i = %zu\n", i);
-                continue;
-            }*/
+
             for (int k = csr->row_offsets[i]; k < csr->row_offsets[i + 1]; k++) {
-                /*
-                if (k > csr->nnz) {
-                    printf("Error: k = %zu\t|Row Offset[i]: %d\t|Row Offset[i+1]:%d\n", k, csr->row_offsets[i], csr->row_offsets[i + 1]);
-                    continue;
-                }*/
+
                 if (csr->col_indices[k] == j) {
                     out << csr->values[k] << "\t";
                     found = true;
@@ -216,6 +208,7 @@ csc_matrix* new_csc_matrix(int rows, int cols, int nnz){
     memset(csc->values, 0, nnz * sizeof(float));
     return csc;
 }
+
 csc_matrix* load_csc_matrix(const char *filename){
     PRINTF("--------------------\n");
     PRINTF("Loading CSC Matrix from file: %s\n", filename);

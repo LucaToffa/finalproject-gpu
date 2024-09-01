@@ -9,8 +9,7 @@
 #include <fstream>
 
 const int matrix_number = 10;
-const char* matrix_list[] = { //for some reason in the original order csr load broke ???
-    //"matrices/bcsstm01.mtx", //not included in the final list
+const char* matrix_list[] = { 
     "matrices/08blocks.mtx",
     "matrices/GD01_Acap.mtx",
     "matrices/494_bus.mtx",
@@ -19,17 +18,14 @@ const char* matrix_list[] = { //for some reason in the original order csr load b
     "matrices/lowThrust_1.mtx",
     "matrices/orbitRaising_3.mtx",
     "matrices/spaceStation_5.mtx",
-    //"matrices/tomography.mtx",
     "matrices/umistfacesnorm_10NN.mtx",
-    //"matrices/Vehicle_10NN.mtx",
     "matrices/west0989.mtx"
 };
 
 int cuSparse_transpose_example();
 int cuda_transpose_example();
 
-int complete_benchmark(); //could remain here or return to benchmark.cu
-//leaving everything in main is ugly as hell
+int complete_benchmark();
 
 int main(int argc, char** argv) {
 #ifdef DEBUG
@@ -49,25 +45,7 @@ int main(int argc, char** argv) {
     csr_log_output.open("logs/csr.log", std::ios::out | std::ios_base::trunc);
     csr_log_output.close();
     complete_benchmark();
-    //cuSparse_transpose_example();
-    //our files are in column fisrt order...
-    // csr_matrix* csr = load_csr_matrix("matrices/tests/mockcoorow.mtx");
-    // csc_matrix* csc = load_csc_matrix("matrices/tests/mockcoo.mtx");
-    // coo_matrix* coo = load_coo_matrix("matrices/tests/mockcoorow.mtx");
-    // csr_matrix* csr_from_csc = csc_to_csr(csc->rows, csc->cols, csc->nnz, csc->values, csc->row_indices, csc->col_offsets);
-    // print_coo_matrix(coo);
-    // print_csr_matrix(csr);
-    // print_csc_matrix(csc);
-    // pretty_print_csr_matrix(csr, std::cout);
-    // float* coo_big = coo_to_mat(coo);
-    // printf("from coo to mat\n");
-    // printMatrix(coo_big, coo->cols);
-    // float* big_mat = csr_to_mat(csr);
-    // printf("from csr to mat\n");
-    // printMatrix(big_mat, csr->cols);
-    // printf("from csc to csr\n");
-    // pretty_print_csr_matrix(csr_from_csc, std::cout);
-    // delete big_mat;
+
     return 0;
 }
 
@@ -134,12 +112,8 @@ int complete_benchmark() {
         // PRINTF("main.cu) Matrix: %s\n", matrix_list[i]);
         //load as coo
         coo_matrix* coo = load_coo_matrix(matrix_list[i]);
-        // coo_matrix* coo = load_coo_matrix("matrices/tests/mockcoo.mtx");
         //load as csr
-        // csr_matrix* csr = load_csr_matrix(matrix_list[i]);
         csc_matrix* csc = load_csc_matrix(matrix_list[i]);
-        // csc_matrix* csc = load_csc_matrix("matrices/tests/mockbig.mtx");
-        // csc_matrix* csc = load_csc_matrix("matrices/tests/mockcoo.mtx");
         csr_matrix* csr = csc_to_csr(csc->rows, csc->cols, csc->nnz, csc->values, csc->row_indices, csc->col_offsets);
         delete[] csc->values;
         delete[] csc->row_indices;

@@ -36,28 +36,25 @@ __global__ void cuCOOt(coo_element *in, size_t nnz) {
 
 // Kernel to count the number of non-zero entries per column
 __global__ void countNNZPerColumn(const int* col_indices, int* col_counts, int nnz) {
-    // col_indices : [ 0 2 3 2 3 3 ]
-    // col_counts : [ 1 0 2 3 ]
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < nnz) {
         atomicAdd(&col_counts[col_indices[tid]], 1);
     }
 }
 
-// Kernel to scatter values and row indices to transposed matrix
-
-__global__ void scatterToTransposed(const float* values, const int* col_indices, const int* row_ptr,
-                                    float* t_values, int* t_row_indices, int* t_col_ptr, int num_rows) {
-    int row = blockIdx.x * blockDim.x + threadIdx.x;
-    if (row < num_rows) {
-        for (int j = row_ptr[row]; j < row_ptr[row + 1]; ++j) {
-            int col = col_indices[j];
-            int dest = atomicAdd(&t_col_ptr[col], 1);
-            t_values[dest] = values[j];
-            t_row_indices[dest] = row;
-        }
-    }
-}
+// // Kernel to scatter values and row indices to transposed matrix
+// __global__ void scatterToTransposed(const float* values, const int* col_indices, const int* row_ptr,
+//                                     float* t_values, int* t_row_indices, int* t_col_ptr, int num_rows) {
+//     int row = blockIdx.x * blockDim.x + threadIdx.x;
+//     if (row < num_rows) {
+//         for (int j = row_ptr[row]; j < row_ptr[row + 1]; ++j) {
+//             int col = col_indices[j];
+//             int dest = atomicAdd(&t_col_ptr[col], 1);
+//             t_values[dest] = values[j];
+//             t_row_indices[dest] = row;
+//         }
+//     }
+// }
 
 //1 thread per col, .append if col == thdx
 //join the threads in order
@@ -68,7 +65,7 @@ __global__ void order_by_column(const float* values, const int* col_indices, //c
     int col = threadIdx.x + blockIdx.x * blockDim.x; //current working column
     //how many values are in this column?
     int start_offset = t_col_indices[col]; //col_ptr 0 1 2 4 7 
-    int num_values = d_col_counts[col]; //1 1 2 3
+    //int num_values = d_col_counts[col]; //1 1 2 3
     int pos = 0;
     if (col < num_cols) {
         for(int i = 0; i < nnz; i++){

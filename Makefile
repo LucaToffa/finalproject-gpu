@@ -37,8 +37,7 @@ valgrind: main
 run: main
 	./main $(N)
 setup:
-	mkdir -p src build include logs\
-	& touch README.md main.cpp
+	mkdir -p src build include logs
 clean:
 	rm -rf build/* \
 	rm *.o main cachegrind.*
