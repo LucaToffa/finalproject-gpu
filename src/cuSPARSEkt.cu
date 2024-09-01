@@ -84,11 +84,13 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
             d_out_values, d_out_row_offsets, d_out_cols,
             CUDA_R_32F, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO, CUSPARSE_CSR2CSC_ALG1, dBuffer
         ));
+        CHECK_CUDA(cudaDeviceSynchronize());
         CHECK_CUDA(cudaFree(dBuffer));
         CHECK_CUSPARSE(cusparseDestroy(handle));
         CHECK_CUSPARSE(cusparseDestroyMatDescr(descr));
     }
     // ? Record time after performing the transpose operation
+    CHECK_CUDA(cudaDeviceSynchronize());
     CHECK_CUDA(cudaEventRecord(stopK));
     // ? Copy data from device to host for Output Matrix
     CHECK_CUDA(cudaMemcpy(out->row_offsets, d_out_row_offsets, (in->rows + 1) * sizeof(int), cudaMemcpyDeviceToHost));

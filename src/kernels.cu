@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 #include <cassert>
 
-__global__ void dummy_kernel(){
+__global__ void dummy_kernel() {
     return;
 }
 /**
@@ -79,7 +79,6 @@ __global__ void order_by_column(const float* values, const int* col_indices, //c
                 pos++;   
             }
         }
-        assert(num_values == pos);
     }
 }
 

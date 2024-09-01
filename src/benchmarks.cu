@@ -45,10 +45,12 @@ int coo_transposition(coo_matrix* coo) {
         print_coo_less(coo);
     #endif
     dummy_kernel<<<1,1>>>();
+    CHECK_CUDA(cudaDeviceSynchronize());
     CHECK_CUDA(cudaEventRecord(startK));
     for (int i = 0; i < TRANSPOSITIONS; i++) {
         cudaMemcpy(d_el, el, coo->nnz * sizeof(coo_element), cudaMemcpyHostToDevice);
         cuCOOt<<<(coo->nnz + 255) / 256, 256>>>(d_coo->el, d_coo->nnz);
+        CHECK_CUDA(cudaDeviceSynchronize());
     }
     //cuCOOt<<<coo->nnz,1>>>(d_coo->el, d_coo->nnz);
     CHECK_CUDA(cudaEventRecord(stopK));
@@ -164,7 +166,7 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
 
         countNNZPerColumn<<<((csr->nnz + 255) / 256), 256>>>(d_col_indices, d_col_counts, csr->nnz);
         prefix_scan<<<1, (csr->cols), shared_mem_size>>>(d_col_ptr, d_col_counts, csr->cols, d_last);
-
+        CHECK_CUDA(cudaDeviceSynchronize());
         CHECK_CUDA(cudaEventRecord(stopK1));
         CHECK_CUDA(cudaEventSynchronize(stopK1));
         CHECK_CUDA(cudaEventElapsedTime(&millisecondsK1, startK1, stopK1));
@@ -193,6 +195,7 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t) {
         CHECK_CUDA(cudaEventCreate(&stopK2));
         CHECK_CUDA(cudaEventRecord(startK2));
         order_by_column<<<(csr->cols + 15) /16, 16>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
+        CHECK_CUDA(cudaDeviceSynchronize());
         CHECK_CUDA(cudaEventRecord(stopK2));
         CHECK_CUDA(cudaEventSynchronize(stopK2));
         CHECK_CUDA(cudaEventElapsedTime(&millisecondsK2, startK2, stopK2));
@@ -297,10 +300,12 @@ int block_trasposition(float* mat, unsigned int N) {
     CHECK_CUDA(cudaEventCreate(&stopK));
 
     dummy_kernel<<<1,1>>>();
+    CHECK_CUDA(cudaDeviceSynchronize());
     CHECK_CUDA(cudaEventRecord(startK));
     for(int i = 0; i < TRANSPOSITIONS; i++){
         CHECK_CUDA(cudaMemcpy(d_mat, mat, mem_size, cudaMemcpyHostToDevice));
         block_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t, N);
+        CHECK_CUDA(cudaDeviceSynchronize());
     }
     CHECK_CUDA(cudaEventRecord(stopK));
     CHECK_CUDA(cudaEventSynchronize(stopK));
@@ -419,6 +424,7 @@ int conflict_transposition(float* mat, unsigned int N) {
     for(int i = 0; i < TRANSPOSITIONS; i++){
         CHECK_CUDA(cudaMemcpy(d_mat, mat, mem_size, cudaMemcpyHostToDevice));
         conflict_transpose<<<DimGrid, DimBlock>>>(d_mat, d_mat_t);
+        CHECK_CUDA(cudaDeviceSynchronize());
     }
     CHECK_CUDA(cudaEventRecord(stopK));
     CHECK_CUDA(cudaEventSynchronize(stopK));
