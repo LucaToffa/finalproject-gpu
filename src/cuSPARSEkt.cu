@@ -17,7 +17,7 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
         fprintf(stderr, "Failed to set CUDA device\n");
         return 1;
     }
-    printf("cuSparseCSRt\n");
+    PRINTF("cuSparseCSRt\n");
 
      // ? Create cuda events to measure time
     cudaEvent_t start, stop;
@@ -121,9 +121,9 @@ int cuSparseCSRt(const csr_matrix* in, csr_matrix* out) {
     output.close();
 
     // Check if transpose was successful
-    printf("Now checking if transpose was successful\n");
+    PRINTF("Now checking if transpose was successful\n");
     if (is_transpose(in, out)) {
-        printf("Transpose is correct\n");
+        PRINTF("Transpose is correct\n");
     } else {
         printf("Transpose is incorrect\n");
         // save to log file

@@ -1,0 +1,61 @@
+make: 'main' is up to date.
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 207.312317 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 17.149343 ms
+main.cu) matrix #0 done
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 148.793625 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 15.103072 ms
+main.cu) matrix #1 done
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 130.140030 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 17.638624 ms
+main.cu) matrix #2 done
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 133.278854 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 65.269440 ms
+main.cu) matrix #3 done
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 133.890213 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 85.591393 ms
+main.cu) matrix #4 done
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 131.432800 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 44.214943 ms
+main.cu) matrix #5 done
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 128.989532 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 40.139233 ms
+main.cu) matrix #6 done
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 159.591461 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 102.450401 ms
+main.cu) matrix #7 done
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 122.466240 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 39.946400 ms
+main.cu) matrix #8 done
+cuSparseCSRt
+Time for executing cuSPARSECSRt operation: 122.526688 ms
+Now checking if transpose was successful
+Transpose is correct
+Time for executing transpose operation: 41.305408 ms
+main.cu) matrix #9 done

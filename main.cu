@@ -8,7 +8,7 @@
 #include "include/benchmarks.cuh"
 #include <fstream>
 
-const int matrix_number = 10;
+const int matrix_number = 13;
 const char* matrix_list[] = { 
     "matrices/08blocks.mtx",
     "matrices/GD01_Acap.mtx",
@@ -19,7 +19,10 @@ const char* matrix_list[] = {
     "matrices/orbitRaising_3.mtx",
     "matrices/spaceStation_5.mtx",
     "matrices/umistfacesnorm_10NN.mtx",
-    "matrices/west0989.mtx"
+    "matrices/west0989.mtx",
+    "matrices/bcsstm01.mtx",
+    "matrices/tomography.mtx",
+    "matrices/Vehicle_10NN.mtx"
 };
 
 int cuSparse_transpose_example();
@@ -159,7 +162,7 @@ int complete_benchmark() {
         if(conflict_transposition(uncompressed, dense_mat_size)) {
             printf("error in conflict transpose, matrix #%d\n", i);
         }
-        printf("main.cu) matrix #%d done\n", i);
+        PRINTF("main.cu) matrix #%d done\n", i);
 
         //delete everything
         delete[] coo->el;
