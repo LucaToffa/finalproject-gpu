@@ -1,5 +1,4 @@
 #include "../include/coo.h"
-#include "../include/csr.h"
 #include "../include/kernels.cuh"
 #include "../include/commons.h"
 #include <cuda_runtime.h>
@@ -73,12 +72,48 @@ __global__ void order_by_column(const float* values, const int* col_indices, //c
                 //append to the end of the array val
                 d_t_values[start_offset + pos] = values[i]; 
                 d_t_col_indices_ordered[start_offset + pos] = d_t_col_indices[i];
-                pos++;   
+                pos++;
             }
         }
     }
 }
+/**
+    01 __ global__ void transp (int *AT.idx, ……) {
+    02   tid = blockIdx.x * blockDim.x + threadIdx.x ;
+    03   while (tid < NNZ) {
+    04        temp = csr_t->row_ptr[csr->col_indeces[tid]] + tex_off[tid];
+    05        csr_t->col_indeces[temp] = idxtemp[tid];
+    06        csr_t->values[temp] = csr->values[tid];
+    07        tid + = THREADS;
+    08   }
+    09 }
+ */
+__global__ void csr_matrix_transpose_kernel(
+    const int num_rows,       // Number of rows in original matrix
+    const int num_cols,       // Number of columns in original matrix
+    const int nnz,            // Number of non-zero elements
 
+    // Input CSR matrix components
+    int* col_indices, // Column indices array input
+    float* values,    // Values array input
+
+    // Output transposed CSR matrix components
+    int* t_row_ptr,         // Transposed row pointer array
+    int* t_col_indices,     // Transposed column indices array
+    float* t_values,         // Transposed values array
+
+    int* tex_off,
+    int* idxtemp
+) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    while (tid < nnz) {
+        int temp = t_row_ptr[col_indices[tid]] + tex_off[tid];
+        t_col_indices[temp] = idxtemp[tid];
+        t_values[temp] = values[tid];
+        tid += blockDim.x * gridDim.x;
+    }
+    __syncthreads();
+}
 
 //old version of block transpose algorithm to check against the new ones
 __global__ void block_transpose(float *input, float *output, int N){

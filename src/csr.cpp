@@ -44,6 +44,20 @@ csr_matrix* new_csr_matrix(int rows, int cols, int nnz) {
     return csr;
 }
 
+void delete_csr(csr_matrix *csr) {
+    delete[] csr->row_offsets;
+    delete[] csr->col_indices;
+    delete[] csr->values;
+    delete csr;
+}
+
+void delete_csc(csc_matrix *csc) {
+    delete[] csc->col_offsets;
+    delete[] csc->row_indices;
+    delete[] csc->values;
+    delete csc;
+}
+
 csr_matrix* load_csr_matrix(const char *filename) {
     PRINTF("--------------------\n");
     PRINTF("Loading CSR Matrix from file: %s\n", filename);

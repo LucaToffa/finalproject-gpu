@@ -23,6 +23,12 @@ struct csr_matrix {
 };
 
 /**
+    * @brief Deletes a CSR matrix
+    * @param {csr_matrix *} csr Pointer to the CSR matrix
+ */
+void delete_csr(csr_matrix *csr);
+
+/**
     * @brief Struct to represent a Compressed Sparse Column matrix, more compatible with the given data
     * @param {int} rows Number of rows in the matrix
     * @param {int} cols Number of columns in the matrix
@@ -39,6 +45,12 @@ struct csc_matrix {
     int* row_indices; // Lenght: csc->nnz
     float* values;       // Lenght: csc->nnz
 };
+
+/**
+    * @brief Deletes a CSC matrix
+    * @param {csc_matrix *} csc Pointer to the CSC matrix
+ */
+void delete_csc(csc_matrix *csc);
 
 /**
     * @brief Builds a new CSR matrix from the given data

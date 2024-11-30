@@ -34,6 +34,12 @@ struct coo_matrix {
 };
 
 /**
+    * @brief Deletes a COO matrix
+    * @param {coo_matrix *} coo - Pointer to the COO matrix
+ */
+void delete_coo(coo_matrix *coo);
+
+/**
     * @brief Load a COO matrix from a file
     * @param {const char *} filename - Path to the file
     * @returns {coo_matrix *} - Pointer to the COO matrix

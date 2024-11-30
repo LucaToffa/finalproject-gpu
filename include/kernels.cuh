@@ -21,4 +21,21 @@ __global__ void order_by_column(const float* values, const int* col_indices, //c
                                 float* d_t_values, int* t_col_indices, int *d_col_counts,
                                 int num_cols, int nnz,
                                 int *d_t_col_indices, int *d_t_col_indices_ordered);
+__global__ void csr_matrix_transpose_kernel(
+    const int num_rows,       // Number of rows in original matrix
+    const int num_cols,       // Number of columns in original matrix
+    const int nnz,            // Number of non-zero elements
+
+    // Input CSR matrix components
+    int* col_indices, // Column indices array input
+    float* values,    // Values array input
+
+    // Output transposed CSR matrix components
+    int* t_row_ptr,         // Transposed row pointer array
+    int* t_col_indices,     // Transposed column indices array
+    float* t_values,         // Transposed values array
+
+    int* tex_off,
+    int* idxtemp
+);
 #endif

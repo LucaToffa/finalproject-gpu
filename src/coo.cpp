@@ -47,6 +47,11 @@ coo_matrix* load_coo_matrix(void) {
     return coo;
 }
 
+void delete_coo(coo_matrix *coo) {
+    delete[] coo->el;
+    delete coo;
+}
+
 bool is_transpose(const coo_matrix *coo, const coo_matrix *coo_t) {
     if(coo->rows != coo_t->cols || coo->cols != coo_t->rows || coo->nnz != coo_t->nnz) {
         return false;
