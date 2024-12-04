@@ -226,3 +226,4 @@ __global__ void prefix_scan(int *g_odata, int *g_idata, int n, int *last)
     g_odata[2 * thid] = temp[2 * thid]; // write results to device memory
     g_odata[2 * thid + 1] = temp[2 * thid + 1];
 }
+

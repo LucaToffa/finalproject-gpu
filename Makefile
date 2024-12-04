@@ -2,7 +2,7 @@ NVCC = nvcc
 CC = g++
 CXXFLAGS = -std=c++17 -lcusparse
 ## uncomment to run on remote machine
-CXXFLAGS += -ccbin /home/linuxbrew/.linuxbrew/bin/g++-12
+# CXXFLAGS += -ccbin /home/linuxbrew/.linuxbrew/bin/g++-12
 CC = $(NVCC)
 
 BUILD := build
@@ -19,7 +19,7 @@ OBJ += $(patsubst $(SRC)/%.cu, $(BUILD)/%.o, $(CUSRC))
 .PHONY: all clean run setup debug
 
 all: run
-debug: $(SRC)/* main.cu
+debug: $(CPPSRC) $(CUSRC) main.cu
 	$(NVCC) $(CXXFLAGS) -g -DDEBUG -I$(INCLUDE) $^ -o $(BUILD)/$@
 	@./$(BUILD)/$@
 main: $(OBJ) $(BUILD)/main.o

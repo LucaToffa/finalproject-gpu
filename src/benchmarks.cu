@@ -102,6 +102,18 @@ int coo_transposition(coo_matrix* coo, int matrix_size) {
 }
 
 int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
+
+    csr_matrix* new_csr_t = new_csr_matrix(csr->cols, csr->rows, csr->nnz);
+    new_csr_t->row_offsets = new int[csr->cols + 1];
+    new_csr_t->col_indices = new int[csr->nnz];
+    new_csr_t->values = new float[csr->nnz];
+    memset(new_csr_t->row_offsets, 0, (csr->cols + 1) * sizeof(int));
+    memset(new_csr_t->col_indices, 0, csr->nnz * sizeof(int));
+    memset(new_csr_t->values, 0, csr->nnz * sizeof(float));
+    new_csr_t->rows = csr->cols;
+    new_csr_t->cols = csr->rows;
+    new_csr_t->nnz = csr->nnz;
+
     cudaEvent_t start, stop;
     cudaEvent_t startK, stopK;
 
@@ -170,9 +182,10 @@ int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     // ? Implement everything in CPU for now
     int nthread = 0;
     int nthreads = 1;
-    int* intra = new int[csr->nnz]();
-    int* inter = new int[(nthreads + 1) * csr->cols]();
-    int* csrRowIdx = new int[csr->nnz]();
+    int* intra = new int[csr->nnz];
+    int* inter = new int[(nthreads + 1) * csr->cols];
+    memset(inter, 0, (nthreads + 1) * csr->cols * sizeof(int));
+    int* csrRowIdx = new int[csr->nnz];
 
     // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->rows
     for(int i = 0; i < csr->rows; i++) {
@@ -180,31 +193,33 @@ int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
             csrRowIdx[j] = i;
         }
     }
+
     // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->nnz
-    for(int i = 0; i < csr->nnz; i++) {
+    for(int i = csr->nnz -1 ; i >= 0; i--) {
         intra[i] = inter[(nthread + 1) * csr->col_indices[i]]++;
     }
 
     // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->cols
     for(int i = 0; i < csr->cols; i++) {
-        for(int j = 1; j < nthread + 1; j++) {
+        for(int j = 1; j < nthread + 1; j++) { // never goes inside
+            PRINTF("inter[%d] = %d\n", i + csr->cols * j, inter[i + csr->cols * j]);
             inter[i + csr->cols * j] += inter[i + csr->cols * (j - 1)];
         }
     }
 
-    for(int i = 0; i < csr->cols; i++) {
-        csr_t->row_offsets[i + 1] = inter[csr->cols * (nthread) + i];
+    for(int i = 0; i < csr->cols; i++) { //ok 
+        new_csr_t->row_offsets[i + 1] = inter[csr->cols * (nthread) + i];
     }
-    
+
     // prefix sum
     for(int i = 0; i < csr->cols; i++) {
-        csr_t->row_offsets[i + 1] += csr_t->row_offsets[i];
+        new_csr_t->row_offsets[i + 1] += new_csr_t->row_offsets[i];
     }
 
     for(int i = 0; i < csr->nnz; i++) {
-        int loc = csr_t->row_offsets[csr->col_indices[i]] + inter[nthread * csr->cols + csr->col_indices[i]] + intra[i];
-        csr_t->col_indices[loc] = csrRowIdx[i];
-        csr_t->values[loc] = csr->values[i];
+        int loc = new_csr_t->row_offsets[csr->col_indices[i]] + inter[nthread * csr->cols + csr->col_indices[i]]- intra[i];
+        new_csr_t->col_indices[loc-1] = csrRowIdx[i];
+        new_csr_t->values[loc-1] = csr->values[i];
     }
 
     delete[] intra;
@@ -241,7 +256,7 @@ int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     output << "CSR, " << matrix_size << "x" << matrix_size << ", " <<  milliseconds << ", "<< ogbs << ", " << millisecondsK << ", " << kgbs << "\n"; /* *** */
     output.close();
 
-    if(is_transpose(csr, csr_t)) {
+    if(is_transpose(csr, new_csr_t)) {
         PRINTF("Transpose is correct.\n");
     } else {
         printf("csr_transposition_2) Transpose is incorrect.\n");
@@ -256,6 +271,8 @@ int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
         PRINTF("--------------------\n");
         return -1;
     }
+
+    delete_csr(new_csr_t);
 
     CHECK_CUDA(cudaFree(d_row_ptr));
     CHECK_CUDA(cudaFree(d_col_indices));
@@ -324,7 +341,7 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     CHECK_CUDA(cudaMemcpy(d_values, csr->values, csr->nnz * sizeof(float), cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemset(d_t_col_indices, 0, csr->nnz * sizeof(int)));
 
-    int *t_col_indices_ordered = new int[csr->nnz];
+    //int *t_col_indices_ordered = new int[csr->nnz];
     int *d_t_col_indices_ordered;
     CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices_ordered, csr->nnz * sizeof(int)));
 
@@ -350,6 +367,7 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
         csr_t->row_offsets = col_ptr;
         CHECK_CUDA(cudaMemcpy(d_row_offsets, col_ptr, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
         //compute row_offsets in cpu (inclusive_scan)
+
         int count = 0;
         for(int i = 0; i < csr->cols; i++) {
             int els = csr->row_offsets[i+1] - csr->row_offsets[i];
@@ -358,11 +376,12 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
                 count++;
             }
         }
+         
         CHECK_CUDA(cudaMemcpy(d_t_col_indices, csr_t->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
         float millisecondsK2 = 0;
         CHECK_CUDA(cudaEventRecord(startK2));
-        //order_by_column<<<(csr->cols + 15) /16, 16>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
-        order_by_column<<<(csr->cols + 3) /4, 4>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
+        order_by_column<<<(csr->cols + 15) /16, 16>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
+        //order_by_column<<<(csr->cols + 3) /4, 4>>>(d_values, d_col_indices, d_t_values, d_col_ptr, d_col_counts, csr->cols, csr->nnz, d_t_col_indices, d_t_col_indices_ordered);
         CHECK_CUDA(cudaEventRecord(stopK2));
         CHECK_CUDA(cudaEventSynchronize(stopK2));
         CHECK_CUDA(cudaEventElapsedTime(&millisecondsK2, startK2, stopK2));
@@ -407,6 +426,9 @@ int csr_transposition(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     CHECK_CUDA(cudaFree(d_row_offsets));
     CHECK_CUDA(cudaFree(d_t_row_offsets));
     CHECK_CUDA(cudaFree(d_t_col_indices_ordered));
+
+    delete last;
+    delete[] zeroes;
 
     PRINTF("Transpose Completed.\n");
 

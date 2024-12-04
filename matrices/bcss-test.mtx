@@ -1,0 +1,38 @@
+%%MatrixMarket matrix coordinate integer symmetric
+%-------------------------------------------------------------------------------
+% UF Sparse Matrix Collection, Tim Davis
+% http://www.cise.ufl.edu/research/sparse/matrices/HB/bcsstm01
+% name: HB/bcsstm01
+% [SYMMETRIC MASS MATRIX SMALL GENERALIZED EIGENVALUE PROBLEM, B MATRIX]
+% id: 56
+% date: 1982
+% author: J. Lewis
+% ed: I. Duff, R. Grimes, J. Lewis
+% fields: title A Zeros name id date author ed kind
+% kind: structural problem
+%-------------------------------------------------------------------------------
+48 48 24
+1 1 1
+2 2 2
+3 3 3
+7 7 4
+8 8 5
+9 19 6
+13 13 7
+16 14 8
+15 15 9
+19 19 10
+20 20 11
+21 21 12
+25 25 13
+26 26 14
+27 27 15
+31 31 16
+32 32 17
+33 33 18
+37 37 19
+38 38 20
+39 39 21
+43 43 22
+44 44 23
+45 45 24
