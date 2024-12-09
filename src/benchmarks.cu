@@ -100,6 +100,205 @@ int coo_transposition(coo_matrix* coo, int matrix_size) {
     PRINTF("--------------------\n");
     return ret;
 }
+int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
+    cudaEvent_t start, stop;
+    cudaEvent_t startK, stopK;
+    size_t free_gpu_memory, total_gpu_memory;
+    cudaMemGetInfo(&free_gpu_memory, &total_gpu_memory);
+    PRINTF("Free GPU Memory: %zu, Total GPU Memory: %zu\n", free_gpu_memory, total_gpu_memory);
+    CHECK_CUDA(cudaEventCreate(&start));
+    cudaMemGetInfo(&free_gpu_memory, &total_gpu_memory);
+    PRINTF("Free GPU Memory: %zu, Total GPU Memory: %zu\n", free_gpu_memory, total_gpu_memory);
+    CHECK_CUDA(cudaEventCreate(&stop));
+    
+    CHECK_CUDA(cudaEventCreate(&startK));
+    CHECK_CUDA(cudaEventCreate(&stopK));
+    dummy_kernel<<<1,1>>>(); // ? Warm up the GPU
+    CHECK_CUDA(cudaEventRecord(start));
+
+    int *d_row_ptr, *d_col_indices;
+    float *d_values;
+    CHECK_CUDA(cudaMalloc((void**)&d_row_ptr, (csr->rows + 1) * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void**)&d_col_indices, csr->nnz * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void**)&d_values, csr->nnz * sizeof(float)));
+
+    CHECK_CUDA(cudaMemcpy(d_row_ptr, csr->row_offsets, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_col_indices, csr->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_values, csr->values, csr->nnz * sizeof(float), cudaMemcpyHostToDevice));
+    PRINTF("hello\n");
+    int *d_t_row_ptr, *d_t_col_indices;
+    float *d_t_values;
+    CHECK_CUDA(cudaMalloc((void**)&d_t_row_ptr, (csr->cols + 1) * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices, csr->nnz * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void**)&d_t_values, csr->nnz * sizeof(float)));
+
+    int block_size = 1024;
+    int grid_size = std::min((csr->nnz + block_size - 1) / block_size, 1024);
+
+    CHECK_CUDA(cudaEventRecord(startK));
+    PRINTF("hello response\n");
+    // ? Implement everything in GPU
+    int* intra;
+    CHECK_CUDA(cudaMalloc((void**)&intra, csr->nnz * sizeof(int)));
+    int* inter;
+    CHECK_CUDA(cudaMalloc((void**)&inter, csr->cols * sizeof(int)));
+    int* RowIdx;
+    CHECK_CUDA(cudaMallocManaged((void**)&RowIdx, csr->nnz * sizeof(int)));
+
+    PRINTF("rowidx: %d\n", csr->nnz);
+
+    for(int i = 0; i < TRANSPOSITIONS; i++) {
+        // reset values
+        CHECK_CUDA(cudaMemset(inter, 0, csr->cols * sizeof(int)));
+        // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->rows
+        getRowIdx<<<1, csr->rows>>>(RowIdx, d_row_ptr, csr->rows, csr->nnz);
+        cudaDeviceSynchronize();
+        cudaMemGetInfo(&free_gpu_memory, &total_gpu_memory);
+        PRINTF("(freed rowidx)Free GPU Memory: %zu, Total GPU Memory: %zu\n", free_gpu_memory, total_gpu_memory);
+        
+// #ifdef DEBUG
+//         
+//         //copy back to host RowIdx
+//         int* h_RowIdx = new int[csr->nnz];
+//         CHECK_CUDA(cudaMemcpy(h_RowIdx, RowIdx, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
+//         printf("RowIdx: ");
+//         for(int i = 0; i < csr->nnz; i++) {
+//             printf("%d ", h_RowIdx[i]);
+//         }
+//         delete[] h_RowIdx;
+// #endif
+        // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->nnz
+        //re reversed the logic now that everything is correct
+        // getIntraInter<<<grid_size, block_size>>>(intra, inter, csr->nnz, d_col_indices);
+        getIntraInter<<<1, 1>>>(intra, inter, csr->nnz, d_col_indices);
+        cudaDeviceSynchronize();
+        
+// #ifdef DEBUG
+//         //copy back to host intra and inter
+//         
+//         int* h_intra = new int[csr->nnz];
+//         int* h_inter = new int[csr->cols];
+//         CHECK_CUDA(cudaMemcpy(h_intra, intra, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
+//         CHECK_CUDA(cudaMemcpy(h_inter, inter, csr->cols * sizeof(int), cudaMemcpyDeviceToHost));
+//         printf("\nIntra: ");
+//         for(int i = 0; i < csr->nnz; i++) {
+//             printf("%d ", h_intra[i]);
+//         }
+//         printf("\nInter: ");
+//         for(int i = 0; i < csr->cols; i++) {
+//             printf("%d ", h_inter[i]);
+//         }
+//         delete[] h_intra;
+//         delete[] h_inter;
+// #endif
+        //all in one
+        getRowOffsets<<<1, csr->cols>>>(d_t_row_ptr, inter, csr->cols);
+        cudaDeviceSynchronize();
+        
+// #ifdef DEBUG
+//         //copy back to host row offsets
+//         int* h_t_row_ptr = new int[csr->cols + 1];
+//         CHECK_CUDA(cudaMemcpy(h_t_row_ptr, d_t_row_ptr, (csr->cols + 1) * sizeof(int), cudaMemcpyDeviceToHost));
+//         printf("\nRow Offsets: ");
+//         for(int i = 0; i < csr->cols + 1; i++) {
+//             printf("%d ", h_t_row_ptr[i]);
+//         }
+// #endif
+        assignValues<<<grid_size, block_size>>>(d_t_col_indices, d_t_values, d_col_indices, d_values, intra, inter, RowIdx, d_t_row_ptr, csr->nnz);
+        cudaDeviceSynchronize();
+// #ifdef DEBUG
+        
+//         //copy back to host col indices and values
+//         int* h_t_col_indices = new int[csr->nnz];
+//         float* h_t_values = new float[csr->nnz];
+//         CHECK_CUDA(cudaMemcpy(h_t_col_indices, d_t_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
+//         CHECK_CUDA(cudaMemcpy(h_t_values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
+//         printf("\nCol Indices: ");
+//         for(int i = 0; i < csr->nnz; i++) {
+//             printf("%d ", h_t_col_indices[i]);
+//         }
+//         printf("\nValues: ");
+//         for(int i = 0; i < csr->nnz; i++) {
+//             printf("%f ", h_t_values[i]);
+//         }
+// #endif
+
+// #ifdef DEBUG
+//         delete[] h_t_row_ptr;
+//         delete[] h_t_col_indices;
+//         delete[] h_t_values;
+
+// #endif 
+    }// end of transpositions
+    cudaMemGetInfo(&free_gpu_memory, &total_gpu_memory);
+    PRINTF("(before copy back) Free GPU Memory: %zu, Total GPU Memory: %zu\n", free_gpu_memory, total_gpu_memory);
+    
+    CHECK_CUDA(cudaEventRecord(stopK));
+
+    CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, d_t_row_ptr, (csr->cols + 1) * sizeof(int), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
+
+    CHECK_CUDA(cudaEventRecord(stop));
+    CHECK_CUDA(cudaEventSynchronize(stopK));
+    CHECK_CUDA(cudaEventSynchronize(stop));
+    CHECK_CUDA(cudaDeviceSynchronize());
+
+    float milliseconds = 0;
+    float millisecondsK = 0;
+    CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
+    CHECK_CUDA(cudaEventElapsedTime(&millisecondsK, startK, stopK));
+    int N = csr->cols;
+    float ogbs = (float)(2.0 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS) / milliseconds;
+    float kgbs = (float)(2.0 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS) / millisecondsK;
+    milliseconds /= (float)TRANSPOSITIONS;
+    millisecondsK /= (float)TRANSPOSITIONS;
+    PRINTF("Time for executing cuCOOt operation: %f ms\n", milliseconds);
+    PRINTF("Operation Throughput in GB/s: %7.2f\n", ogbs);
+
+    std::ofstream output;
+    output.open("logs/results.log", std::ios::out | std::ios_base::app);
+    // algorithm, MatSize, OpTime, Op-GB/s, KTime, K-GB/s
+    output << "CSR gpu, " << matrix_size << "x" << matrix_size << ", " <<  milliseconds << ", "<< ogbs << ", " << millisecondsK << ", " << kgbs << "\n"; /* *** */
+    output.close();
+
+    if(is_transpose(csr, csr_t)) {
+        PRINTF("Transpose is correct.\n");
+    } else {
+        printf("csr_transposition_2) Transpose is incorrect.\n");
+        std::ofstream errlogstream;
+        errlogstream.open("logs/transpose_err.log", std::ios::out | std::ios::app);
+        errlogstream << "Transpose Error: CSR\n";
+        errlogstream << "Original Matrix:\n";
+        pretty_print_csr_matrix(csr, errlogstream);
+        errlogstream << "\n\nTranposed Matrix:\n";
+        pretty_print_csr_matrix(csr_t, errlogstream);
+        errlogstream.close();
+        PRINTF("--------------------\n");
+        return -1;
+    }
+
+    CHECK_CUDA(cudaFree(inter));
+    CHECK_CUDA(cudaFree(intra));
+    CHECK_CUDA(cudaFree(RowIdx));
+
+    CHECK_CUDA(cudaFree(d_row_ptr));
+    CHECK_CUDA(cudaFree(d_col_indices));
+    CHECK_CUDA(cudaFree(d_values));
+    CHECK_CUDA(cudaFree(d_t_row_ptr));
+    CHECK_CUDA(cudaFree(d_t_col_indices));
+    CHECK_CUDA(cudaFree(d_t_values));
+
+    CHECK_CUDA(cudaEventDestroy(start));
+    CHECK_CUDA(cudaEventDestroy(stop));
+    CHECK_CUDA(cudaEventDestroy(startK));
+    CHECK_CUDA(cudaEventDestroy(stopK));
+    
+
+    cudaMemGetInfo(&free_gpu_memory, &total_gpu_memory);
+    // printf("(end of transposition) Free GPU Memory: %zu, Total GPU Memory: %zu\n", free_gpu_memory, total_gpu_memory);
+    return 0;
+}
 
 int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
 
@@ -125,59 +324,8 @@ int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     dummy_kernel<<<1,1>>>(); // ? Warm up the GPU
     CHECK_CUDA(cudaEventRecord(start));
 
-    int *d_row_ptr, *d_col_indices;
-    float *d_values;
-    CHECK_CUDA(cudaMalloc((void**)&d_row_ptr, (csr->rows + 1) * sizeof(int)));
-    CHECK_CUDA(cudaMalloc((void**)&d_col_indices, csr->nnz * sizeof(int)));
-    CHECK_CUDA(cudaMalloc((void**)&d_values, csr->nnz * sizeof(float)));
-
-    // CHECK_CUDA(cudaMemcpy(d_row_ptr, csr->row_offsets, (csr->rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
-    // CHECK_CUDA(cudaMemcpy(d_col_indices, csr->col_indices, csr->nnz * sizeof(int), cudaMemcpyHostToDevice));
-    // CHECK_CUDA(cudaMemcpy(d_values, csr->values, csr->nnz * sizeof(float), cudaMemcpyHostToDevice));
-
-    int *d_t_row_ptr, *d_t_col_indices;
-    float *d_t_values;
-    CHECK_CUDA(cudaMalloc((void**)&d_t_row_ptr, (csr->cols + 1) * sizeof(int)));
-    CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices, csr->nnz * sizeof(int)));
-    CHECK_CUDA(cudaMalloc((void**)&d_t_values, csr->nnz * sizeof(float)));
-
-    int block_size = 64;
-    int grid_size = std::min((csr->nnz + block_size - 1) / block_size, 1024);
-
     CHECK_CUDA(cudaEventRecord(startK));
     //for(int i = 0; i < TRANSPOSITIONS; i++) {
-        /**
-        // construct auxiliary data arrays
-        1 ∗intra = new int[nnz]();
-        2 ∗inter = new int[(nthreads + 1) ∗ n]();
-        3 ∗csrRowIdx = new int[nnz]();
-        4 #pragma omp parallel for schedule(dynamic)
-        5 for i ←0; i < m; i++ do
-            6 for j ←csrRowPtr[i]; j <csrRowPtr[i+1]; j++ do
-                7 csrRowIdx[j] = i;
-        8 #pragma omp parallel
-        9 // partition nnz evenly on threads, get start in csrColIdx
-        and len for each thread
-        10 for i ←0; i < len; i++ do
-            11 intra[start + i]=inter[(tid + 1) ∗ n + csrColIdx[start + i]] + +;
-        12 // vertical scan
-        13 #pragma omp parallel for schedule(dynamic)
-        14 for i ←0; i < n; i++ do
-            15 for j ←1; j < nthread + 1; j++ do
-                16 inter[i + n ∗ j]+ = inter[i + n ∗ (j − 1)];
-        17 #pragma omp parallel for schedule(dynamic)
-        18 for i ←0; i < n; i++ do
-            19 cscColPtr[i + 1]=inter[n ∗ nthread + i];
-        20 prefix sum(cscColP tr, n + 1);
-        21 #pragma omp parallel
-        22 for i ←0; i < len; i++ do
-            23 loc = cscColPtr[csrColIdx[start + i]] + inter[tid ∗ n +
-            csrColIdx[start + i]] + intra[start + i];
-            24 cscRowIdx[loc] = csrRowIdx[start + i];
-            25 cscVal[loc] = csrVal[start + i];
-        26 // free intra, inter, csrRowIdx
-        27 return;
-         */
 
     // ? Implement everything in CPU for now
     int nthread = 0;
@@ -193,45 +341,89 @@ int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
             csrRowIdx[j] = i;
         }
     }
+#ifdef DEBUG
+    printf("csrRowIdx: ");
+    for(int i = 0; i < csr->nnz; i++) {
+        printf("%d ", csrRowIdx[i]);
+    }
+    printf("\n");
+#endif
 
-    // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->nnz
-    for(int i = csr->nnz -1 ; i >= 0; i--) {
+    for(int i = 0 ; i < csr->nnz; i++) {
         intra[i] = inter[(nthread + 1) * csr->col_indices[i]]++;
     }
-
-    // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->cols
-    for(int i = 0; i < csr->cols; i++) {
-        for(int j = 1; j < nthread + 1; j++) { // never goes inside
-            PRINTF("inter[%d] = %d\n", i + csr->cols * j, inter[i + csr->cols * j]);
-            inter[i + csr->cols * j] += inter[i + csr->cols * (j - 1)];
-        }
+#ifdef DEBUG
+    printf("intra: ");
+    for(int i = 0; i < csr->nnz; i++) {
+        printf("%d ", intra[i]);
     }
+    printf("\n");
 
+    printf("inter: "); //ok
+    for(int i = 0; i < csr->cols; i++) {
+        //for(int j = 0; j < nthreads + 1; j++) {
+            printf("%d ", inter[i// + csr->cols * j
+            ]);
+        //}
+    }
+    printf("\n");
+#endif
     for(int i = 0; i < csr->cols; i++) { //ok 
         new_csr_t->row_offsets[i + 1] = inter[csr->cols * (nthread) + i];
+         new_csr_t->row_offsets[i + 1] += new_csr_t->row_offsets[i];
     }
-
-    // prefix sum
-    for(int i = 0; i < csr->cols; i++) {
-        new_csr_t->row_offsets[i + 1] += new_csr_t->row_offsets[i];
+#ifdef DEBUG
+    printf("row_offsets: ");
+    for(int i = 0; i < csr->cols + 1; i++) {
+        printf("%d ", new_csr_t->row_offsets[i]);
     }
-
+    printf("\n");
+    printf("row_offsets after prefix sum: ");
+    for(int i = 0; i < csr->cols + 1; i++) {
+        printf("%d ", new_csr_t->row_offsets[i]);
+    }
+    printf("\n");
+#endif
+    // int *loc_list = new int[csr->nnz];
+    // int *loc_list_intra = new int[csr->nnz];
     for(int i = 0; i < csr->nnz; i++) {
-        int loc = new_csr_t->row_offsets[csr->col_indices[i]] + inter[nthread * csr->cols + csr->col_indices[i]]- intra[i];
+        int loc = new_csr_t->row_offsets[csr->col_indices[i]] + inter[nthread * csr->cols + csr->col_indices[i]];
+        // loc_list[i] = loc;
+        loc = loc - intra[i];
+        // loc_list_intra[i] = loc;
+        // if (loc < 1) {
+        //     printf("loc: %d, i: %d\n", loc, i); // segfault negative index
+        //     continue;
+        // }
         new_csr_t->col_indices[loc-1] = csrRowIdx[i];
         new_csr_t->values[loc-1] = csr->values[i];
     }
-
+    // printf("Loc_list: \n");
+    // for(int i = 0; i < csr->nnz; i++) {
+    //     printf("%d ", loc_list[i]);
+    // }
+    // printf("\n");
+    // printf("loc list intra: \n");
+    // for(int i = 0; i < csr->nnz; i++) {
+    //     printf("%d ", loc_list_intra[i]);
+    // }
+    // printf("\n");
+    // delete[] loc_list;
+    // delete[] loc_list_intra;
+#ifdef DEBUG
+    printf("original: ");
+    print_csr_matrix(csr);
+    printf("\n");
+    printf("data: ");
+    print_csr_matrix(new_csr_t);
+    printf("\n");
+#endif
     delete[] intra;
     delete[] inter;
     delete[] csrRowIdx;
 
     //}
     CHECK_CUDA(cudaEventRecord(stopK));
-
-    // CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, d_t_row_ptr, (csr->cols + 1) * sizeof(int), cudaMemcpyDeviceToHost));
-    // CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
-    // CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
 
     CHECK_CUDA(cudaEventRecord(stop));
     CHECK_CUDA(cudaEventSynchronize(stopK));
@@ -273,13 +465,6 @@ int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     }
 
     delete_csr(new_csr_t);
-
-    CHECK_CUDA(cudaFree(d_row_ptr));
-    CHECK_CUDA(cudaFree(d_col_indices));
-    CHECK_CUDA(cudaFree(d_values));
-    CHECK_CUDA(cudaFree(d_t_row_ptr));
-    CHECK_CUDA(cudaFree(d_t_col_indices));
-    CHECK_CUDA(cudaFree(d_t_values));
     
     return 0;
 }

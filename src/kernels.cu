@@ -227,3 +227,116 @@ __global__ void prefix_scan(int *g_odata, int *g_idata, int n, int *last)
     g_odata[2 * thid + 1] = temp[2 * thid + 1];
 }
 
+// implementation of new csr transpose algorithm
+// in our case rows == cols always
+
+// get rowIdx, rows threads, rows+1 offsets
+// alternative to use more blocks and less threads:
+// 31 threds per block, each shared loads 32 rowPtrs, but all 
+// reads would be blocking (ne point sovrapposition), also misaligned
+// we would have to pass one element each to the function directly
+// but it woud also be a list to index through
+__global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz){
+    // use shared memory to store rowPtr
+    __shared__ int sharedRowPtr[1024]; 
+    //max rows + 1 (shared memory isn't initialized like this) => just static 1024
+    //first elem is always zero, we don't need to copy it
+    //last is nnz
+    //for coalesced maybe better to avoid copying the last element instead of the first
+    int i = threadIdx.x;
+    if(i < rows){ // remove in the end
+        sharedRowPtr[i] = rowPtr[i];
+        // printf("%d ", rowPtr[i]);
+    }else{
+       printf("Error: threadIdx.x %d is greater than N+1\n", threadIdx.x);
+    }
+    __syncthreads(); // wait for all threads to finish copying, all can work on shared memory now
+
+    // for each row, fill rowIdx with the row index 
+    // printf("ptr: %d, ptr_shared %d\n", rowPtr[i], sharedRowPtr[i]);
+    if(i< rows){   
+        // for(int j = sharedRowPtr[i]; j < sharedRowPtr[i+1]; j++){
+        for (int j = rowPtr[i]; j < rowPtr[i+1]; j++){
+            //check pot of bound
+            if(j >= nnz){
+                printf("Error: j %d is greater than nnz %d\n", j, nnz);
+            }
+            rowIdx[j] = i;
+        
+        }
+    }
+    //the last thread will have the last row too
+    //i = 1025
+    __syncthreads(); // wait for all threads to finish writing
+    if(i == rows-1){
+        // for(int j = sharedRowPtr[i]; j < nnz; j++){
+        for(int j = rowPtr[i]; j < nnz; j++){
+            if(j >= nnz){
+                printf("Error: j %d is greater than nnz %d\n", j, nnz);
+            }
+            rowIdx[j] = i;
+        }
+    }
+}
+
+// get intra and inter (this can be parallel to prevoius kernel)
+
+__global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices){
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    // if(i < nnz){
+    //     intra[i] = inter[col_indices[i]]++;
+    //     __syncthreads(); 
+    // }
+    if(i == 0){ //serialize for debugging
+        for (int j = 0; j < nnz; j++){
+            intra[j] = inter[col_indices[j]]++;
+        }     
+    }
+    
+}
+
+// get row offsets of the transposed matrix
+// single block, cols threads
+
+__global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){
+    int i = threadIdx.x;
+    //load inter into shared
+    __shared__ int sharedInter[1024];
+    if(i < cols){
+        sharedInter[i] = inter[i];
+    }else{
+        return;
+    }
+    __syncthreads();
+    //calculate row offsets
+    rowOffsets[i+1] = sharedInter[i];
+    __syncthreads(); // wait all inter to be loaded
+
+    // rowOffsets[i+1] += rowOffsets[i];
+    if(i == 0){ //serialize for debugging
+        for(int j = 0; j < cols; j++){
+            rowOffsets[j+1] += rowOffsets[j];
+        }
+    }
+    
+}
+
+// final calculation of the transposed matrix
+// assign col_indices and values to the right position
+// nnz computations
+//locality of needed col_indices => can use shared memory (also for intra, rowIdx and values)
+//need to assign dynamically the shared memory size though
+//inter, rowOffsets are not accessed linearly => not in shared memory
+__global__ void assignValues(
+    int *t_col_indices, float *t_values, int *col_indices, float *values,
+    int *intra, int *inter, int *rowIdx, int *rowOffsets, int nnz
+    )
+{
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    if(i < nnz){
+        int loc = rowOffsets[col_indices[i]] + inter[col_indices[i]] - intra[i];
+
+        t_col_indices[loc-1] = rowIdx[i];
+        t_values[loc-1] = values[i];
+    }
+}

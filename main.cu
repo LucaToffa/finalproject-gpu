@@ -7,14 +7,18 @@
 #include "include/benchmarks.cuh"
 #include <fstream>
 
+// "matrices/tests/mockcoo.mtx",
+// "matrices/bcss-test.mtx",
 const int MATRICES_LEN = 13;
 const char* MATRICES[] = { 
+    //"matrices/tests/mockcoo.mtx",
+    //"matrices/bcss-test.mtx",
     "matrices/08blocks.mtx",
     "matrices/GD01_Acap.mtx",
-    "matrices/494_bus.mtx",
-    "matrices/circuit204.mtx",
+    "matrices/494_bus.mtx", 
+    "matrices/circuit204.mtx",  
     "matrices/collins_15NN.mtx",
-    "matrices/lowThrust_1.mtx",
+    "matrices/lowThrust_1.mtx", 
     "matrices/orbitRaising_3.mtx",
     "matrices/spaceStation_5.mtx",
     "matrices/umistfacesnorm_10NN.mtx",
@@ -91,8 +95,12 @@ int complete_benchmark() {
         if(coo_transposition(coo, matrix_size)) {
             printf("error in coo transpose, matrix #%d\n", i); 
         }
-        PRINTF("main.cu) calling cuCSRt kernel\n");
-        if(csr_transposition_2(csr, csr_t, matrix_size)) {
+        // PRINTF("main.cu) calling cuCSRt (cpu)kernel\n");
+        // if(csr_transposition_2(csr, csr_t, matrix_size)) {
+        //     printf("error in csr transpose, matrix #%d\n", i);
+        // }
+        PRINTF("main.cu) calling cuCSRt (gpu) kernel\n");
+        if(csr_transposition_3(csr, csr_t, matrix_size)) {
             printf("error in csr transpose, matrix #%d\n", i);
         }
         PRINTF("main.cu) calling block kernel\n");

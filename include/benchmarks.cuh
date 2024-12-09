@@ -22,8 +22,8 @@ int coo_transposition(coo_matrix* coo, int matrix_size);
     * @return {int} 0 if successful, 1 otherwise
  */
 int csr_transposition(csr_matrix* csr, csr_matrix* csr_t, int matrix_size);
-
 int csr_transposition_2(csr_matrix* csr, csr_matrix* csr_t, int matrix_size);
+int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size);
 /**
     * @brief Transpose a dense matrix using a a block transpose CUDA kernel
     * @param {float *} mat - Block matrix to be transposed

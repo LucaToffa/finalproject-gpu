@@ -38,4 +38,13 @@ __global__ void csr_matrix_transpose_kernel(
     int* tex_off,
     int* idxtemp
 );
+
+// four steps implementation
+__global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz);
+__global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices);
+__global__ void getRowOffsets(int *rowOffsets, int *inter, int cols);
+__global__ void assignValues(
+    int *t_col_indices, float *t_values, int *col_indices, float *values,
+    int *intra, int *inter, int *rowIdx, int *rowOffsets, int nnz
+    );
 #endif
