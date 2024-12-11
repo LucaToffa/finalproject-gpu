@@ -236,52 +236,72 @@ __global__ void prefix_scan(int *g_odata, int *g_idata, int n, int *last)
 // reads would be blocking (ne point sovrapposition), also misaligned
 // we would have to pass one element each to the function directly
 // but it woud also be a list to index through
-__global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz){
-    // use shared memory to store rowPtr
-    __shared__ int sharedRowPtr[1024]; 
-    //max rows + 1 (shared memory isn't initialized like this) => just static 1024
-    //first elem is always zero, we don't need to copy it
-    //last is nnz
-    //for coalesced maybe better to avoid copying the last element instead of the first
-    int i = threadIdx.x;
-    if(i < rows){ // remove in the end
-        sharedRowPtr[i] = rowPtr[i];
-        // printf("%d ", rowPtr[i]);
-    }else{
-       printf("Error: threadIdx.x %d is greater than N+1\n", threadIdx.x);
+__global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz){ //slow
+    __shared__ int sharedRowPtr[33]; //better loading more than needed than having a single thread doing a diffrent thing
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    sharedRowPtr[threadIdx.x] = rowPtr[i];
+    sharedRowPtr[threadIdx.x+1] = rowPtr[i+1];
+    __syncthreads();
+    // for (int j = rowPtr[i]; j < rowPtr[i+1]; j++){
+    for(int j = sharedRowPtr[threadIdx.x]; j < sharedRowPtr[threadIdx.x+1]; j++){
+        rowIdx[j] = i;
     }
-    __syncthreads(); // wait for all threads to finish copying, all can work on shared memory now
+    // __syncthreads(); // wait for all threads to finish writing
+    // if(i == rows-1){
+    //     // for(int j = sharedRowPtr[i]; j < nnz; j++){
+    //     for(int j = rowPtr[i]; j < nnz; j++){
+    //         if(j >= nnz){
+    //             printf("Error: j %d is greater than nnz %d\n", j, nnz);
+    //         }
+    //         rowIdx[j] = i;
+    //     }
+    // }
+    // // use shared memory to store rowPtr
+    // __shared__ int sharedRowPtr[1024]; 
+    // //max rows + 1 (shared memory isn't initialized like this) => just static 1024
+    // //first elem is always zero, we don't need to copy it
+    // //last is nnz
+    // //for coalesced maybe better to avoid copying the last element instead of the first
+    // int i = threadIdx.x;
+    // if(i < rows){ // remove in the end
+    //     sharedRowPtr[i] = rowPtr[i];
+    //     // printf("%d ", rowPtr[i]);
+    // }
+    // // else{
+    // //    printf("Error: threadIdx.x %d is greater than N+1\n", threadIdx.x);
+    // // }
+    // __syncthreads(); // wait for all threads to finish copying, all can work on shared memory now
 
-    // for each row, fill rowIdx with the row index 
-    // printf("ptr: %d, ptr_shared %d\n", rowPtr[i], sharedRowPtr[i]);
-    if(i< rows){   
-        // for(int j = sharedRowPtr[i]; j < sharedRowPtr[i+1]; j++){
-        for (int j = rowPtr[i]; j < rowPtr[i+1]; j++){
-            //check pot of bound
-            if(j >= nnz){
-                printf("Error: j %d is greater than nnz %d\n", j, nnz);
-            }
-            rowIdx[j] = i;
+    // // for each row, fill rowIdx with the row index 
+    // // printf("ptr: %d, ptr_shared %d\n", rowPtr[i], sharedRowPtr[i]);
+    // if(i < rows){   
+    //     for(int j = sharedRowPtr[i]; j < sharedRowPtr[i+1]; j++){
+    //     //for (int j = rowPtr[i]; j < rowPtr[i+1]; j++){
+    //         //check pot of bound
+    //         if(j >= nnz){
+    //             printf("Error: j %d is greater than nnz %d\n", j, nnz);
+    //         }
+    //         rowIdx[j] = i;
         
-        }
-    }
-    //the last thread will have the last row too
-    //i = 1025
-    __syncthreads(); // wait for all threads to finish writing
-    if(i == rows-1){
-        // for(int j = sharedRowPtr[i]; j < nnz; j++){
-        for(int j = rowPtr[i]; j < nnz; j++){
-            if(j >= nnz){
-                printf("Error: j %d is greater than nnz %d\n", j, nnz);
-            }
-            rowIdx[j] = i;
-        }
-    }
+    //     }
+    // }
+    // //the last thread will have the last row too
+    // //i = 1025
+    // __syncthreads(); // wait for all threads to finish writing
+    // if(i == rows-1){
+    //     // for(int j = sharedRowPtr[i]; j < nnz; j++){
+    //     for(int j = rowPtr[i]; j < nnz; j++){
+    //         if(j >= nnz){
+    //             printf("Error: j %d is greater than nnz %d\n", j, nnz);
+    //         }
+    //         rowIdx[j] = i;
+    //     }
+    // }
 }
 
 // get intra and inter (this can be parallel to prevoius kernel)
 
-__global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices){
+__global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices){ //snail
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     // if(i < nnz){ // basic idea
     //     intra[i] = inter[col_indices[i]]++;
@@ -295,51 +315,62 @@ __global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices)
     // }
 
     //invert the logic so that we can parallelize when there is no conflict
-    for(int j = 0; j < nnz; j++){
+    for(int j = i; j < nnz; j++){
         if(i == j){
             // intra[j] = inter[col_indices[j]]++;
-            intra[j] = atomicAdd(&inter[col_indices[j]], 1);
+            intra[i] = atomicAdd(&inter[col_indices[i]], 1);
         }
+        return;
     }
-
+    // intra[i] = atomicAdd(&inter[col_indices[i]], 1); //not equivalent to the previous one
     
 }
 
 // get row offsets of the transposed matrix
 // single block, cols threads
 
-__global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){
+__global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){ //fast
     int i = threadIdx.x;
     //load inter into shared
     __shared__ int sharedInter[1024];
     if(i < cols){
         sharedInter[i] = inter[i];
-    }else{
-        return;
-    }
-    __syncthreads();
-    //calculate row offsets
-    rowOffsets[i+1] = sharedInter[i];
-    // __syncthreads(); // wait all inter to be loaded (?)
-
-    // rowOffsets[i+1] += rowOffsets[i]; //incorrect
-
-    // if(i == 0){ //serialize for debugging
-    //     for(int j = 0; j < cols; j++){
-    //         rowOffsets[j+1] += rowOffsets[j];
-    //     }
-    // }
-
-    //instead of full serialization, do recursive sums to get ineach element the
-    //sum of all the previous elements
-    if(i < cols){ //performance didn't improve much
-        for(int j = 1; j < cols; j *= 2){
+        __syncthreads();
+        //calculate row offsets
+        rowOffsets[i+1] = sharedInter[i];
+        for(int j = 1; j < cols; j *= 2){ //bad access pattern ??
             if(i >= j){
                 rowOffsets[i] += rowOffsets[i-j];
             }
             __syncthreads();
         }
     }
+    // else{
+    //     return;
+    // }
+    // __syncthreads();
+    // //calculate row offsets
+    // rowOffsets[i+1] = sharedInter[i];
+    // // __syncthreads(); // wait all inter to be loaded (?)
+
+    // // rowOffsets[i+1] += rowOffsets[i]; //incorrect
+
+    // // if(i == 0){ //serialize for debugging
+    // //     for(int j = 0; j < cols; j++){
+    // //         rowOffsets[j+1] += rowOffsets[j];
+    // //     }
+    // // }
+
+    // //instead of full serialization, do recursive sums to get ineach element the
+    // //sum of all the previous elements
+    // if(i < cols){ //performance didn't improve much
+    //     for(int j = 1; j < cols; j *= 2){
+    //         if(i >= j){
+    //             rowOffsets[i] += rowOffsets[i-j];
+    //         }
+    //         __syncthreads();
+    //     }
+    // }
 
     
 }
@@ -350,16 +381,33 @@ __global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){
 //locality of needed col_indices => can use shared memory (also for intra, rowIdx and values)
 //need to assign dynamically the shared memory size though
 //inter, rowOffsets are not accessed linearly => not in shared memory
-__global__ void assignValues(
+__global__ void assignValues( // fast
     int *t_col_indices, float *t_values, int *col_indices, float *values,
     int *intra, int *inter, int *rowIdx, int *rowOffsets, int nnz
     )
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
-    if(i < nnz){
-        int loc = rowOffsets[col_indices[i]] + inter[col_indices[i]] - intra[i] - 1;
+    __shared__ int sharedIntra[1024];
+    __shared__ int sharedRowIdx[1024];
+    __shared__ float sharedValues[1024];
+    __shared__ int sharedColIndices[1024];
 
-        t_col_indices[loc] = rowIdx[i];
-        t_values[loc] = values[i];
+    if(i < nnz){
+        sharedIntra[threadIdx.x] = intra[i];
+        sharedRowIdx[threadIdx.x] = rowIdx[i];
+        sharedValues[threadIdx.x] = values[i];
+        sharedColIndices[threadIdx.x] = col_indices[i];
+        __syncthreads();
+        int loc = rowOffsets[sharedColIndices[threadIdx.x]] + inter[sharedColIndices[threadIdx.x]] - sharedIntra[threadIdx.x] - 1;
+        // int loc = rowOffsets[col_indices[i]] + inter[col_indices[i]] - intra[i] - 1;
+        t_col_indices[loc] = sharedRowIdx[threadIdx.x];
+        t_values[loc] = sharedValues[threadIdx.x];
     }
+    // int i = threadIdx.x + blockIdx.x * blockDim.x;
+    // if(i < nnz){
+    //     int loc = rowOffsets[col_indices[i]] + inter[col_indices[i]] - intra[i] - 1;
+
+    //     t_col_indices[loc] = rowIdx[i];
+    //     t_values[loc] = values[i];
+    // }
 }

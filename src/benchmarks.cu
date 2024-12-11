@@ -145,13 +145,16 @@ int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     int* RowIdx;
     CHECK_CUDA(cudaMallocManaged((void**)&RowIdx, csr->nnz * sizeof(int)));
 
-    PRINTF("rowidx: %d\n", csr->nnz);
-
+    // PRINTF("rowidx: %d\n", csr->nnz);
+    // printf("block_size: %d, grid_size: %d \n", block_size, grid_size);
     for(int i = 0; i < TRANSPOSITIONS; i++) {
         // reset values
         CHECK_CUDA(cudaMemset(inter, 0, csr->cols * sizeof(int)));
         // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->rows
-        getRowIdx<<<1, csr->rows>>>(RowIdx, d_row_ptr, csr->rows, csr->nnz);
+        // getRowIdx<<<1, csr->rows>>>(RowIdx, d_row_ptr, csr->rows, csr->nnz);
+        int row_thr = 32;
+        int row_blk = (csr->rows + row_thr - 1) / row_thr;
+        getRowIdx<<<row_blk, row_thr>>>(RowIdx, d_row_ptr, csr->rows, csr->nnz);
         // cudaMemGetInfo(&free_gpu_memory, &total_gpu_memory);
         // PRINTF("(freed rowidx)Free GPU Memory: %zu, Total GPU Memory: %zu\n", free_gpu_memory, total_gpu_memory);
         
@@ -169,9 +172,7 @@ int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
         // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->nnz
         //re reversed the logic now that everything is correct
         getIntraInter<<<grid_size, block_size>>>(intra, inter, csr->nnz, d_col_indices);
-        // getIntraInter<<<1, 1>>>(intra, inter, csr->nnz, d_col_indices);
-        cudaDeviceSynchronize();
-        
+
 #ifdef DEBUG
         //copy back to host intra and inter
         
@@ -192,7 +193,6 @@ int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
 #endif
         //all in one
         getRowOffsets<<<1, csr->cols>>>(d_t_row_ptr, inter, csr->cols);
-        cudaDeviceSynchronize();
         
 // #ifdef DEBUG
 //         //copy back to host row offsets
@@ -233,7 +233,6 @@ int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     // PRINTF("(before copy back) Free GPU Memory: %zu, Total GPU Memory: %zu\n", free_gpu_memory, total_gpu_memory);
     
     CHECK_CUDA(cudaEventRecord(stopK));
-    cudaDeviceSynchronize();
     CHECK_CUDA(cudaMemcpy(csr_t->row_offsets, d_t_row_ptr, (csr->cols + 1) * sizeof(int), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(csr_t->col_indices, d_t_col_indices, csr->nnz * sizeof(int), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(csr_t->values, d_t_values, csr->nnz * sizeof(float), cudaMemcpyDeviceToHost));
