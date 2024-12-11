@@ -145,13 +145,16 @@ int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     int* RowIdx;
     CHECK_CUDA(cudaMallocManaged((void**)&RowIdx, csr->nnz * sizeof(int)));
 
-    PRINTF("rowidx: %d\n", csr->nnz);
-
+    // PRINTF("rowidx: %d\n", csr->nnz);
+    // printf("block_size: %d, grid_size: %d \n", block_size, grid_size);
     for(int i = 0; i < TRANSPOSITIONS; i++) {
         // reset values
         CHECK_CUDA(cudaMemset(inter, 0, csr->cols * sizeof(int)));
         // ? Run this on GPU over i = thread_id = threadIdx.x + blockIdx.x * blockDim.x < csr->rows
-        getRowIdx<<<1, csr->rows>>>(RowIdx, d_row_ptr, csr->rows, csr->nnz);
+        // getRowIdx<<<1, csr->rows>>>(RowIdx, d_row_ptr, csr->rows, csr->nnz);
+        int row_thr = 32;
+        int row_blk = (csr->rows + row_thr - 1) / row_thr;
+        getRowIdx<<<row_blk, row_thr>>>(RowIdx, d_row_ptr, csr->rows, csr->nnz);
         // cudaMemGetInfo(&free_gpu_memory, &total_gpu_memory);
         // PRINTF("(freed rowidx)Free GPU Memory: %zu, Total GPU Memory: %zu\n", free_gpu_memory, total_gpu_memory);
         
