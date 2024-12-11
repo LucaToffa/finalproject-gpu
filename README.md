@@ -39,3 +39,28 @@ make setup
 make main
 sbatch sbatch.sh
 ```
+
+#### summing up row pointers
+
+1 2 0 1 3 => 1 3 3 4 7
+in gpu??
+    1 | 2 0 1 3 _
+    1    
+        3
+            1
+                3
+second iteration      
+    1  3 | 0 1 3 3 _
+    1  3
+           3
+               4
+                   3
+third iteration
+    1  3  3 | 1 3 3 4 _
+    1  3  3
+              1
+                  3
+                      4
+
+      
+      

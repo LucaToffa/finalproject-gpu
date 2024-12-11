@@ -58,7 +58,6 @@ def plot_gpu_performance(df):
     ax2.set_ylabel('Execution Time (ms)')
     ax2.set_yscale('log')
     ax2.legend()
-    
     # Adjust layout and show plot
     plt.tight_layout()
     plt.show()

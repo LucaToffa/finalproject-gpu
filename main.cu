@@ -55,6 +55,7 @@ int main(int argc, char** argv) {
 int complete_benchmark() {
     unsigned int dense_mat_size;
     std::ofstream output;
+    // std::ofstream sparsity_output;
     output.open("logs/results.log");
     output << "#algorithm, MatSize, OpTime, Op-GB/s, KTime, K-GB/s#\n";
     output.close();
@@ -79,7 +80,7 @@ int complete_benchmark() {
         // ? Clear the results.log file
         output.open("logs/results.log", std::ios::out | std::ios_base::app);
         output.close();
-
+        // sparsity_output.close();
         // ? Run The Benchmarks:
         // ? > cuSparseCSRt
         // ? > cuCOOt

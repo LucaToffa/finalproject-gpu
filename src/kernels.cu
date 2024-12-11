@@ -283,15 +283,25 @@ __global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz){
 
 __global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices){
     int i = threadIdx.x + blockIdx.x * blockDim.x;
-    // if(i < nnz){
+    // if(i < nnz){ // basic idea
     //     intra[i] = inter[col_indices[i]]++;
     //     __syncthreads(); 
     // }
-    if(i == 0){ //serialize for debugging
-        for (int j = 0; j < nnz; j++){
-            intra[j] = inter[col_indices[j]]++;
-        }     
+
+    // if(i == 0){ //serialize for debugging
+    //     for (int j = 0; j < nnz; j++){
+    //         intra[j] = inter[col_indices[j]]++;
+    //     }     
+    // }
+
+    //invert the logic so that we can parallelize when there is no conflict
+    for(int j = 0; j < nnz; j++){
+        if(i == j){
+            // intra[j] = inter[col_indices[j]]++;
+            intra[j] = atomicAdd(&inter[col_indices[j]], 1);
+        }
     }
+
     
 }
 
@@ -310,14 +320,27 @@ __global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){
     __syncthreads();
     //calculate row offsets
     rowOffsets[i+1] = sharedInter[i];
-    __syncthreads(); // wait all inter to be loaded
+    // __syncthreads(); // wait all inter to be loaded (?)
 
-    // rowOffsets[i+1] += rowOffsets[i];
-    if(i == 0){ //serialize for debugging
-        for(int j = 0; j < cols; j++){
-            rowOffsets[j+1] += rowOffsets[j];
+    // rowOffsets[i+1] += rowOffsets[i]; //incorrect
+
+    // if(i == 0){ //serialize for debugging
+    //     for(int j = 0; j < cols; j++){
+    //         rowOffsets[j+1] += rowOffsets[j];
+    //     }
+    // }
+
+    //instead of full serialization, do recursive sums to get ineach element the
+    //sum of all the previous elements
+    if(i < cols){ //performance didn't improve much
+        for(int j = 1; j < cols; j *= 2){
+            if(i >= j){
+                rowOffsets[i] += rowOffsets[i-j];
+            }
+            __syncthreads();
         }
     }
+
     
 }
 
@@ -334,9 +357,9 @@ __global__ void assignValues(
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     if(i < nnz){
-        int loc = rowOffsets[col_indices[i]] + inter[col_indices[i]] - intra[i];
+        int loc = rowOffsets[col_indices[i]] + inter[col_indices[i]] - intra[i] - 1;
 
-        t_col_indices[loc-1] = rowIdx[i];
-        t_values[loc-1] = values[i];
+        t_col_indices[loc] = rowIdx[i];
+        t_values[loc] = values[i];
     }
 }

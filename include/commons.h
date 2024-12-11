@@ -13,7 +13,11 @@
     #define BLOCK_ROWS 8
 #endif
 #define DEFAULT_SIZE 32
-#define TRANSPOSITIONS 100
+#ifndef DEBUG
+    #define TRANSPOSITIONS 100
+#else
+    #define TRANSPOSITIONS 1
+#endif
 
 #define CHECK_CUDA(func)                                                       \
 {                                                                              \
