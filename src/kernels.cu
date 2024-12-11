@@ -41,20 +41,6 @@ __global__ void countNNZPerColumn(const int* col_indices, int* col_counts, int n
     }
 }
 
-// // Kernel to scatter values and row indices to transposed matrix
-// __global__ void scatterToTransposed(const float* values, const int* col_indices, const int* row_ptr,
-//                                     float* t_values, int* t_row_indices, int* t_col_ptr, int num_rows) {
-//     int row = blockIdx.x * blockDim.x + threadIdx.x;
-//     if (row < num_rows) {
-//         for (int j = row_ptr[row]; j < row_ptr[row + 1]; ++j) {
-//             int col = col_indices[j];
-//             int dest = atomicAdd(&t_col_ptr[col], 1);
-//             t_values[dest] = values[j];
-//             t_row_indices[dest] = row;
-//         }
-//     }
-// }
-
 //1 thread per col, .append if col == thdx
 //join the threads in order
 __global__ void order_by_column(const float* values, const int* col_indices, //col_offset
@@ -77,17 +63,7 @@ __global__ void order_by_column(const float* values, const int* col_indices, //c
         }
     }
 }
-/**
-    01 __ global__ void transp (int *AT.idx, ……) {
-    02   tid = blockIdx.x * blockDim.x + threadIdx.x ;
-    03   while (tid < NNZ) {
-    04        temp = csr_t->row_ptr[csr->col_indeces[tid]] + tex_off[tid];
-    05        csr_t->col_indeces[temp] = idxtemp[tid];
-    06        csr_t->values[temp] = csr->values[tid];
-    07        tid + = THREADS;
-    08   }
-    09 }
- */
+
 __global__ void csr_matrix_transpose_kernel(
     const int num_rows,       // Number of rows in original matrix
     const int num_cols,       // Number of columns in original matrix
@@ -242,78 +218,15 @@ __global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz){ //slow
     sharedRowPtr[threadIdx.x] = rowPtr[i];
     sharedRowPtr[threadIdx.x+1] = rowPtr[i+1];
     __syncthreads();
-    // for (int j = rowPtr[i]; j < rowPtr[i+1]; j++){
     for(int j = sharedRowPtr[threadIdx.x]; j < sharedRowPtr[threadIdx.x+1]; j++){
         rowIdx[j] = i;
     }
-    // __syncthreads(); // wait for all threads to finish writing
-    // if(i == rows-1){
-    //     // for(int j = sharedRowPtr[i]; j < nnz; j++){
-    //     for(int j = rowPtr[i]; j < nnz; j++){
-    //         if(j >= nnz){
-    //             printf("Error: j %d is greater than nnz %d\n", j, nnz);
-    //         }
-    //         rowIdx[j] = i;
-    //     }
-    // }
-    // // use shared memory to store rowPtr
-    // __shared__ int sharedRowPtr[1024]; 
-    // //max rows + 1 (shared memory isn't initialized like this) => just static 1024
-    // //first elem is always zero, we don't need to copy it
-    // //last is nnz
-    // //for coalesced maybe better to avoid copying the last element instead of the first
-    // int i = threadIdx.x;
-    // if(i < rows){ // remove in the end
-    //     sharedRowPtr[i] = rowPtr[i];
-    //     // printf("%d ", rowPtr[i]);
-    // }
-    // // else{
-    // //    printf("Error: threadIdx.x %d is greater than N+1\n", threadIdx.x);
-    // // }
-    // __syncthreads(); // wait for all threads to finish copying, all can work on shared memory now
 
-    // // for each row, fill rowIdx with the row index 
-    // // printf("ptr: %d, ptr_shared %d\n", rowPtr[i], sharedRowPtr[i]);
-    // if(i < rows){   
-    //     for(int j = sharedRowPtr[i]; j < sharedRowPtr[i+1]; j++){
-    //     //for (int j = rowPtr[i]; j < rowPtr[i+1]; j++){
-    //         //check pot of bound
-    //         if(j >= nnz){
-    //             printf("Error: j %d is greater than nnz %d\n", j, nnz);
-    //         }
-    //         rowIdx[j] = i;
-        
-    //     }
-    // }
-    // //the last thread will have the last row too
-    // //i = 1025
-    // __syncthreads(); // wait for all threads to finish writing
-    // if(i == rows-1){
-    //     // for(int j = sharedRowPtr[i]; j < nnz; j++){
-    //     for(int j = rowPtr[i]; j < nnz; j++){
-    //         if(j >= nnz){
-    //             printf("Error: j %d is greater than nnz %d\n", j, nnz);
-    //         }
-    //         rowIdx[j] = i;
-    //     }
-    // }
 }
 
-// get intra and inter (this can be parallel to prevoius kernel)
-
+// get intra and inter (this can be parallel to previous kernel)
 __global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices){ //snail
     int i = threadIdx.x + blockIdx.x * blockDim.x;
-    // if(i < nnz){ // basic idea
-    //     intra[i] = inter[col_indices[i]]++;
-    //     __syncthreads(); 
-    // }
-
-    // if(i == 0){ //serialize for debugging
-    //     for (int j = 0; j < nnz; j++){
-    //         intra[j] = inter[col_indices[j]]++;
-    //     }     
-    // }
-
     //invert the logic so that we can parallelize when there is no conflict
     for(int j = i; j < nnz; j++){
         if(i == j){
@@ -322,16 +235,13 @@ __global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices)
         }
         return;
     }
-    // intra[i] = atomicAdd(&inter[col_indices[i]], 1); //not equivalent to the previous one
-    
+
 }
 
 // get row offsets of the transposed matrix
 // single block, cols threads
-
 __global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){ //fast
     int i = threadIdx.x;
-    //load inter into shared
     __shared__ int sharedInter[1024];
     if(i < cols){
         sharedInter[i] = inter[i];
@@ -345,34 +255,6 @@ __global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){ //fast
             __syncthreads();
         }
     }
-    // else{
-    //     return;
-    // }
-    // __syncthreads();
-    // //calculate row offsets
-    // rowOffsets[i+1] = sharedInter[i];
-    // // __syncthreads(); // wait all inter to be loaded (?)
-
-    // // rowOffsets[i+1] += rowOffsets[i]; //incorrect
-
-    // // if(i == 0){ //serialize for debugging
-    // //     for(int j = 0; j < cols; j++){
-    // //         rowOffsets[j+1] += rowOffsets[j];
-    // //     }
-    // // }
-
-    // //instead of full serialization, do recursive sums to get ineach element the
-    // //sum of all the previous elements
-    // if(i < cols){ //performance didn't improve much
-    //     for(int j = 1; j < cols; j *= 2){
-    //         if(i >= j){
-    //             rowOffsets[i] += rowOffsets[i-j];
-    //         }
-    //         __syncthreads();
-    //     }
-    // }
-
-    
 }
 
 // final calculation of the transposed matrix
@@ -399,15 +281,7 @@ __global__ void assignValues( // fast
         sharedColIndices[threadIdx.x] = col_indices[i];
         __syncthreads();
         int loc = rowOffsets[sharedColIndices[threadIdx.x]] + inter[sharedColIndices[threadIdx.x]] - sharedIntra[threadIdx.x] - 1;
-        // int loc = rowOffsets[col_indices[i]] + inter[col_indices[i]] - intra[i] - 1;
         t_col_indices[loc] = sharedRowIdx[threadIdx.x];
         t_values[loc] = sharedValues[threadIdx.x];
     }
-    // int i = threadIdx.x + blockIdx.x * blockDim.x;
-    // if(i < nnz){
-    //     int loc = rowOffsets[col_indices[i]] + inter[col_indices[i]] - intra[i] - 1;
-
-    //     t_col_indices[loc] = rowIdx[i];
-    //     t_values[loc] = values[i];
-    // }
 }

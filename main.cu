@@ -7,12 +7,8 @@
 #include "include/benchmarks.cuh"
 #include <fstream>
 
-// "matrices/tests/mockcoo.mtx",
-// "matrices/bcss-test.mtx",
 const int MATRICES_LEN = 13;
-const char* MATRICES[] = { 
-    //"matrices/tests/mockcoo.mtx",
-    //"matrices/bcss-test.mtx",
+const char* MATRICES[] = {
     "matrices/08blocks.mtx",
     "matrices/GD01_Acap.mtx",
     "matrices/494_bus.mtx", 
@@ -55,7 +51,6 @@ int main(int argc, char** argv) {
 int complete_benchmark() {
     unsigned int dense_mat_size;
     std::ofstream output;
-    // std::ofstream sparsity_output;
     output.open("logs/results.log");
     output << "#algorithm, MatSize, OpTime, Op-GB/s, KTime, K-GB/s#\n";
     output.close();
@@ -80,13 +75,6 @@ int complete_benchmark() {
         // ? Clear the results.log file
         output.open("logs/results.log", std::ios::out | std::ios_base::app);
         output.close();
-        // sparsity_output.close();
-        // ? Run The Benchmarks:
-        // ? > cuSparseCSRt
-        // ? > cuCOOt
-        // ? > csr_transposition => [countNNZPerColumn | prefix_scan | order_by_column]
-        // ? > block_trasposition => block_transpose
-        // ? > conflict_transposition => conflict_transpose
         int matrix_size = coo->rows;
         PRINTF("main.cu) calling cuSparseCSRt kernel\n");
         if(cuSparseCSRt(csr, csr_t, matrix_size)) {
@@ -96,10 +84,6 @@ int complete_benchmark() {
         if(coo_transposition(coo, matrix_size)) {
             printf("error in coo transpose, matrix #%d\n", i); 
         }
-        // PRINTF("main.cu) calling cuCSRt (cpu)kernel\n");
-        // if(csr_transposition_2(csr, csr_t, matrix_size)) {
-        //     printf("error in csr transpose, matrix #%d\n", i);
-        // }
         PRINTF("main.cu) calling cuCSRt (gpu) kernel\n");
         if(csr_transposition_3(csr, csr_t, matrix_size)) {
             printf("error in csr transpose, matrix #%d\n", i);
@@ -114,7 +98,7 @@ int complete_benchmark() {
         }
         PRINTF("main.cu) matrix #%d done\n", i);
 
-        // ? Free All Memory Allocated for the next iteration
+        // Free All Memory Allocated for the next iteration
         delete_coo(coo);
         delete_csr(csr);
         delete_csr(csr_t);
