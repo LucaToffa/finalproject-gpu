@@ -14,7 +14,7 @@
 #endif
 #define DEFAULT_SIZE 32
 #ifndef DEBUG
-    #define TRANSPOSITIONS 100
+    #define TRANSPOSITIONS 1000
 #else
     #define TRANSPOSITIONS 1
 #endif
