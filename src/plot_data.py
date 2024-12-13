@@ -1,7 +1,12 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# default log file
 RESULTS_FILE = 'logs/results.log'
+#else get the file from the arguments
+import sys
+if len(sys.argv) > 1:
+    RESULTS_FILE = sys.argv[1]
 
 df = pd.read_csv(RESULTS_FILE, comment='#', names=['algorithm', 'MatSize', 'OpTime', 'Op-GB/s', 'KTime', 'K-GB/s'])
 

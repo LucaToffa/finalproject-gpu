@@ -227,15 +227,8 @@ __global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz){ //slow
 // get intra and inter (this can be parallel to previous kernel)
 __global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices){ //snail
     int i = threadIdx.x + blockIdx.x * blockDim.x;
-    //invert the logic so that we can parallelize when there is no conflict
-    for(int j = i; j < nnz; j++){
-        if(i == j){
-            // intra[j] = inter[col_indices[j]]++;
-            intra[i] = atomicAdd(&inter[col_indices[i]], 1);
-        }
-        return;
-    }
-
+    
+    if(i < nnz) intra[i] = atomicAdd(&inter[col_indices[i]], 1); //problem is here in theory
 }
 
 // get row offsets of the transposed matrix

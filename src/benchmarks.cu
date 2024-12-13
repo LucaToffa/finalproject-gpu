@@ -143,13 +143,13 @@ int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
         // reset values
         CHECK_CUDA(cudaMemset(inter, 0, csr->cols * sizeof(int)));
         getRowIdx<<<row_blk, row_thr>>>(RowIdx, d_row_ptr, csr->rows, csr->nnz);
-
+        cudaCheckError();
         getIntraInter<<<grid_size, block_size>>>(intra, inter, csr->nnz, d_col_indices);
-
+        cudaCheckError();
         getRowOffsets<<<1, csr->cols>>>(d_t_row_ptr, inter, csr->cols);
-        
+        cudaCheckError();
         assignValues<<<grid_size, block_size>>>(d_t_col_indices, d_t_values, d_col_indices, d_values, intra, inter, RowIdx, d_t_row_ptr, csr->nnz);
-
+        cudaCheckError();
     }// end of transpositions
     
     CHECK_CUDA(cudaEventRecord(stopK));

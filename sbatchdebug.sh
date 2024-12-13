@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=transpose
+#SBATCH --job-name=transpose-all
 #SBATCH --partition=edu5
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
@@ -10,5 +10,5 @@
 #SBATCH --error=output-%j.err
 
 module load cuda/12.1
-make -B main
-srun ./main
+make -B debug
+srun ./build/debug
