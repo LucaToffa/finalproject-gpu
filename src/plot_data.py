@@ -1,12 +1,16 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-
+import math
 # default log file
 RESULTS_FILE = 'logs/results.log'
 #else get the file from the arguments
 import sys
 if len(sys.argv) > 1:
     RESULTS_FILE = sys.argv[1]
+    if len(sys.argv) > 2 and (sys.argv[2] == '-u' or sys.argv[2] == '--ungrouped'):
+        grouped = False
+    else:
+        grouped = True
 
 df = pd.read_csv(RESULTS_FILE, comment='#', names=['algorithm', 'MatSize', 'OpTime', 'Op-GB/s', 'KTime', 'K-GB/s'])
 
@@ -29,6 +33,7 @@ df.columns = df.columns.str.strip()
 
 # ? Write here the plotting function...
 def plot_gpu_performance(df):
+    
     """
     Create two plots to visualize GPU performance:
     1. Throughput (GB/s) by Matrix Size for different algorithms
@@ -44,27 +49,55 @@ def plot_gpu_performance(df):
     # ? We will have multiple values for each matrix size, take the mean of them and plot that
     # ? Also take the max and min values to show the range of values
 
-    df = df.groupby(['algorithm', 'MatSize']).agg({'OpTime': 'mean', 'Op-GB/s': 'mean'}).reset_index()
+    if (grouped):
+        df = df.groupby(['algorithm', 'MatSize']).agg({'OpTime': 'mean', 'Op-GB/s': 'mean'}).reset_index()
     
-    # Plot 1: Throughput (GB/s) by Matrix Size for different algorithms
-    for algo, group in df.groupby('algorithm'):
-        ax1.plot(group['MatSize'], group['Op-GB/s'], marker='o', label=algo)
-    ax1.set_title('Throughput (GB/s) by Matrix Size')
-    ax1.set_xlabel('Matrix Size')
-    ax1.set_ylabel('Throughput (GB/s)')
-    ax1.legend()
+        # Plot 1: Throughput (GB/s) by Matrix Size for different algorithms
+        for algo, group in df.groupby('algorithm'):
+            ax1.plot(group['MatSize'], group['Op-GB/s'], marker='o', label=algo)
+        ax1.set_title('Throughput (GB/s) by Matrix Size')
+        ax1.set_xlabel('Matrix Size')
+        ax1.set_ylabel('Throughput (GB/s)')
+        ax1.legend()
 
-    # Plot 2: Execution Time by Matrix Size for different algorithms
-    # ? Make it log scale on y axis
-    for algo, group in df.groupby('algorithm'):
-        ax2.plot(group['MatSize'], group['OpTime'], marker='o', label=algo)
-    ax2.set_title('Execution Time by Matrix Size')
-    ax2.set_xlabel('Matrix Size')
-    ax2.set_ylabel('Execution Time (ms)')
-    ax2.set_yscale('log')
-    ax2.legend()
-    # Adjust layout and show plot
-    plt.tight_layout()
-    plt.show()
+        # Plot 2: Execution Time by Matrix Size for different algorithms
+        # ? Make it log scale on y axis
+        for algo, group in df.groupby('algorithm'):
+            ax2.plot(group['MatSize'], group['OpTime'], marker='o', label=algo)
+        ax2.set_title('Execution Time by Matrix Size')
+        ax2.set_xlabel('Matrix Size')
+        ax2.set_ylabel('Execution Time (ms)')
+        ax2.set_yscale('log')
+        ax2.legend()
+        # Adjust layout and show plot
+        plt.tight_layout()
+        plt.show()
+    else:
+        num_algos = 5
+        df = df.reset_index()
+        df['idx'] = df.index / num_algos
+        for i in range(df.shape[0]):
+            df['idx'][i] = math.floor(df['idx'][i])
+
+        # Plot 1: Throughput (GB/s) by Matrix Size for different algorithms
+        for algo, group in df.groupby('algorithm'):
+            ax1.plot(group['idx'], group['Op-GB/s'], marker='o', label=algo)
+        ax1.set_title('Throughput (GB/s) by Matrix Size')
+        ax1.set_xlabel('Matrix')
+        ax1.set_ylabel('Throughput (GB/s)')
+        ax1.legend()
+
+        # Plot 2: Execution Time by Matrix Size for different algorithms
+        # ? Make it log scale on y axis
+        for algo, group in df.groupby('algorithm'):
+            ax2.plot(group['idx'], group['OpTime'], marker='o', label=algo)
+        ax2.set_title('Execution Time by Matrix Size')
+        ax2.set_xlabel('Matrix')
+        ax2.set_ylabel('Execution Time (ms)')
+        ax2.set_yscale('log')
+        ax2.legend()
+        # Adjust layout and show plot
+        plt.tight_layout()
+        plt.show()        
 
 plot_gpu_performance(df)

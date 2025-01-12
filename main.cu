@@ -56,20 +56,20 @@ int complete_benchmark() {
     output.close();
     for (int i = 0; i < MATRICES_LEN; i++) {
         // ? Load COO and CSR Matrix Representations
-        coo_matrix* coo = load_coo_matrix(MATRICES[i]); // ? Load COO Matrix
-        csc_matrix* csc = load_csc_matrix(MATRICES[i]); // ? Load CSC Matrix
+        coo_matrix* coo = load_coo_matrix(MATRICES[i]); // Load COO Matrix
+        csc_matrix* csc = load_csc_matrix(MATRICES[i]); // Load CSC Matrix
         csr_matrix* csr = csc_to_csr(csc->rows, csc->cols, csc->nnz, csc->values, csc->row_indices, csc->col_offsets); // ? Convert CSC to CSR
-        delete_csc(csc); // ? Delete CSC
+        delete_csc(csc); // Delete CSC
         printf("main.cu) Matrix[%d] -> (%d x %d): %s\n", i, coo->rows, coo->cols, MATRICES[i]);
         std::ofstream csr_log_output;
         csr_log_output.open("logs/csr.log", std::ios::out | std::ios_base::app);
         csr_log_output << "Matrix: " << MATRICES[i] << "\n";
         csr_log_output.close();
 
-        csr_matrix* csr_t = new_csr_matrix(csr->cols, csr->rows, csr->nnz); // ? Create CSR Transpose
-        float* uncompressed = coo_to_mat_padded(coo); // ? Convert COO to Uncompressed Matrix
-        assert(coo->rows == coo->cols); // ? Assert Square Matrix
-        dense_mat_size = next_power_of_2(std::max(coo->rows, coo->cols)); // ? Get Padded Size of Uncompressed Matrix
+        csr_matrix* csr_t = new_csr_matrix(csr->cols, csr->rows, csr->nnz); // Create CSR Transpose
+        float* uncompressed = coo_to_mat_padded(coo); // Convert COO to Uncompressed Matrix
+        assert(coo->rows == coo->cols); // Assert Square Matrix
+        dense_mat_size = next_power_of_2(std::max(coo->rows, coo->cols)); // Get Padded Size of Uncompressed Matrix
         // dense_mat_size = coo->rows;
 
         // ? Clear the results.log file
@@ -85,7 +85,7 @@ int complete_benchmark() {
             printf("error in coo transpose, matrix #%d\n", i); 
         }
         PRINTF("main.cu) calling cuCSRt (gpu) kernel\n");
-        if(csr_transposition_3(csr, csr_t, matrix_size)) {
+        if(csr_transposition(csr, csr_t, matrix_size)) {
             printf("error in csr transpose, matrix #%d\n", i);
         }
         PRINTF("main.cu) calling block kernel\n");

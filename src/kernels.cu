@@ -212,7 +212,7 @@ __global__ void prefix_scan(int *g_odata, int *g_idata, int n, int *last)
 // reads would be blocking (ne point sovrapposition), also misaligned
 // we would have to pass one element each to the function directly
 // but it woud also be a list to index through
-__global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz){ //slow
+__global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz){ 
     __shared__ int sharedRowPtr[33]; //better loading more than needed than having a single thread doing a diffrent thing
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     sharedRowPtr[threadIdx.x] = rowPtr[i];
@@ -225,15 +225,15 @@ __global__ void getRowIdx(int *rowIdx, int *rowPtr, int rows, int nnz){ //slow
 }
 
 // get intra and inter (this can be parallel to previous kernel)
-__global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices){ //snail
+__global__ void getIntraInter(int *intra, int *inter, int nnz, int *col_indices){
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     
-    if(i < nnz) intra[i] = atomicAdd(&inter[col_indices[i]], 1); //problem is here in theory
+    if(i < nnz) intra[i] = atomicAdd(&inter[col_indices[i]], 1);
 }
 
 // get row offsets of the transposed matrix
 // single block, cols threads
-__global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){ //fast
+__global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){ 
     int i = threadIdx.x;
     __shared__ int sharedInter[1024];
     if(i < cols){
@@ -241,7 +241,7 @@ __global__ void getRowOffsets(int *rowOffsets, int *inter, int cols){ //fast
         __syncthreads();
         //calculate row offsets
         rowOffsets[i+1] = sharedInter[i];
-        for(int j = 1; j < cols; j *= 2){ //bad access pattern ??
+        for(int j = 1; j < cols; j *= 2){ 
             if(i >= j){
                 rowOffsets[i] += rowOffsets[i-j];
             }

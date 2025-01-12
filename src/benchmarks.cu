@@ -100,7 +100,7 @@ int coo_transposition(coo_matrix* coo, int matrix_size) {
     PRINTF("--------------------\n");
     return ret;
 }
-int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
+int csr_transposition(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     cudaEvent_t start, stop;
     cudaEvent_t startK, stopK;
     CHECK_CUDA(cudaEventCreate(&start));
@@ -125,6 +125,10 @@ int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     CHECK_CUDA(cudaMalloc((void**)&d_t_row_ptr, (csr->cols + 1) * sizeof(int)));
     CHECK_CUDA(cudaMalloc((void**)&d_t_col_indices, csr->nnz * sizeof(int)));
     CHECK_CUDA(cudaMalloc((void**)&d_t_values, csr->nnz * sizeof(float)));
+    
+    CHECK_CUDA(cudaMemset(d_t_row_ptr, 0, (csr->cols + 1) * sizeof(int))); // zero init not needed in theory
+    CHECK_CUDA(cudaMemset(d_t_col_indices, 0, csr->nnz * sizeof(int))); // in practice we avoid propagation of artifacts
+    CHECK_CUDA(cudaMemset(d_t_values, 0, csr->nnz * sizeof(float)));
 
     int block_size = 1024;
     int grid_size = std::min((csr->nnz + block_size - 1) / block_size, 1024);
@@ -135,7 +139,7 @@ int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     int* inter;
     CHECK_CUDA(cudaMalloc((void**)&inter, csr->cols * sizeof(int)));
     int* RowIdx;
-    CHECK_CUDA(cudaMallocManaged((void**)&RowIdx, csr->nnz * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void**)&RowIdx, csr->nnz * sizeof(int)));
 
     int row_thr = 32;
     int row_blk = (csr->rows + row_thr - 1) / row_thr;
@@ -171,7 +175,7 @@ int csr_transposition_3(csr_matrix* csr, csr_matrix* csr_t, int matrix_size) {
     float kgbs = (float)(2.0 * N * N * sizeof(float) * 1e-6 * TRANSPOSITIONS) / millisecondsK;
     milliseconds /= (float)TRANSPOSITIONS;
     millisecondsK /= (float)TRANSPOSITIONS;
-    PRINTF("Time for executing cuCOOt operation: %f ms\n", milliseconds);
+    PRINTF("Time for executing cuCSRt operation: %f ms\n", milliseconds);
     PRINTF("Operation Throughput in GB/s: %7.2f\n", ogbs);
 
     std::ofstream output;
