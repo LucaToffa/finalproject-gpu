@@ -26,6 +26,11 @@ matrix should be highly sparse, namely the number of zero element is more that 7
 
 As usual, the metric to consider is the effective bandwidth
 
+#### dependencies:
+- python3, mathplotlib, numpy, pandas
+- nvidia-cuda-toolkit
+- g++
+
 ### running on cluster
 
 ```bash
@@ -46,6 +51,11 @@ python3 src/plot_data.py logs/results.log -u # ungrouped data for each matrix
 ```
   
 ### useful sites and resources
-https://sparse.tamu.edu/?per_page=All (The dataset to use for the benchmark)
-
-https://docs.nvidia.com/cuda/cusparse/ (cuSPARSE documentation)
+- https://sparse.tamu.edu/?per_page=All (The dataset to use for the benchmark)
+- https://docs.nvidia.com/cuda/cusparse/ (cuSPARSE documentation)
+- https://docs.nvidia.com/cuda/cusparse/index.html#coordinate-coo (COO Format Definition by CUDA)
+- https://docs.nvidia.com/cuda/cusparse/index.html#compressed-sparse-row-csr (CSR Format Definition by CUDA)
+- https://sparse.tamu.edu/?per_page=All (Dataset for our benchmark)
+- https://docs.nvidia.com/cuda/cusparse/ (CuSPARSE documentation)
+- https://developer.download.nvidia.com/compute/DevZone/C/html_x64/6_Advanced/transpose/doc/MatrixTranspose.pdf (Block Transpose implementation by CUDA Developers)
+- https://dl.acm.org/doi/pdf/10.1145/2925426.2926291 (Parallel Transposition of Sparse Data Structures)

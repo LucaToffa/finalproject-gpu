@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import math
 # default log file
@@ -39,17 +40,20 @@ def plot_gpu_performance(df):
     1. Throughput (GB/s) by Matrix Size for different algorithms
     2. Execution Time by Matrix Size for different algorithms
     """
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-    # Get the unique matrices sizes and group by them
-    mat_sizes = df['MatSize'].unique()
-    mat_sizes = sorted(mat_sizes, key=lambda x: int(x.split('x')[0]))
-    df['MatSize'] = pd.Categorical(df['MatSize'], categories=mat_sizes, ordered=True)
-    df = df.sort_values('MatSize')
-
-    # ? We will have multiple values for each matrix size, take the mean of them and plot that
-    # ? Also take the max and min values to show the range of values
-
+    
+    
     if (grouped):
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        # Get the unique matrices sizes and group by them
+        mat_sizes = df['MatSize'].unique()
+        mat_sizes = sorted(mat_sizes, key=lambda x: int(x.split('x')[0]))
+        df['MatSize'] = pd.Categorical(df['MatSize'], categories=mat_sizes, ordered=True)
+        df = df.sort_values('MatSize')
+
+        # ? We will have multiple values for each matrix size, take the mean of them and plot that
+        # ? Also take the max and min values to show the range of values
+
+    
         df = df.groupby(['algorithm', 'MatSize']).agg({'OpTime': 'mean', 'Op-GB/s': 'mean'}).reset_index()
     
         # Plot 1: Throughput (GB/s) by Matrix Size for different algorithms
@@ -73,31 +77,53 @@ def plot_gpu_performance(df):
         plt.tight_layout()
         plt.show()
     else:
+        # sort by matrix size without changing internal order
+        
         num_algos = 5
         df = df.reset_index()
         df['idx'] = df.index / num_algos
         for i in range(df.shape[0]):
             df['idx'][i] = math.floor(df['idx'][i])
+        
+        # Create figure with two subplots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
 
-        # Plot 1: Throughput (GB/s) by Matrix Size for different algorithms
-        for algo, group in df.groupby('algorithm'):
-            ax1.plot(group['idx'], group['Op-GB/s'], marker='o', label=algo)
+        # Get unique matrix sizes and algorithms
+        matrices = df['idx'].unique()
+        algorithms = df['algorithm'].unique()
+
+        # Set width of each bar and positions of the bars
+        width = 0.15  # Adjust this value to change bar width
+        x = np.arange(len(matrices))
+
+        # Plot 1: Throughput (GB/s)
+        for i, algo in enumerate(algorithms):
+            data = df[df['algorithm'] == algo]['Op-GB/s']
+            position = x + width * (i - len(algorithms)/2 + 0.5)
+            ax1.bar(position, data, width, label=algo)
+
         ax1.set_title('Throughput (GB/s) by Matrix Size')
         ax1.set_xlabel('Matrix')
         ax1.set_ylabel('Throughput (GB/s)')
+        ax1.set_xticks(x)
         ax1.legend()
 
-        # Plot 2: Execution Time by Matrix Size for different algorithms
-        # ? Make it log scale on y axis
-        for algo, group in df.groupby('algorithm'):
-            ax2.plot(group['idx'], group['OpTime'], marker='o', label=algo)
-        ax2.set_title('Execution Time by Matrix Size')
+        # Plot 2: Kernel Time (log scale)
+        for i, algo in enumerate(algorithms):
+            data = df[df['algorithm'] == algo]['KTime']
+            position = x + width * (i - len(algorithms)/2 + 0.5)
+            ax2.bar(position, data, width, label=algo)
+
+        ax2.set_title('Kernel Time by Matrix Size')
         ax2.set_xlabel('Matrix')
-        ax2.set_ylabel('Execution Time (ms)')
+        ax2.set_ylabel('Kernel Time (ms)')
         ax2.set_yscale('log')
+        ax2.set_xticks(x)
         ax2.legend()
+
         # Adjust layout and show plot
         plt.tight_layout()
-        plt.show()        
+        plt.show()       
 
 plot_gpu_performance(df)
+
